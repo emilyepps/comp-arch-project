@@ -1,0 +1,17 @@
+﻿  main.cpp
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(9): error C2143: syntax error : missing ')' before '.'
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(9): error C3484: syntax error: expected '->' before the return type
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(9): error C2059: syntax error : '.'
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(14): error C2065: 'string' : undeclared identifier
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(14): error C2146: syntax error : missing ')' before identifier 'filename'
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(14): error C2182: 'InstructionsFromFile' : illegal use of type 'void'
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(14): error C2059: syntax error : ')'
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(98): error C2143: syntax error : missing ')' before '.'
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(98): error C3484: syntax error: expected '->' before the return type
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(98): error C2059: syntax error : '.'
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(98): error C2143: syntax error : missing ';' before '{'
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(98): error C2447: '{' : missing function header (old-style formal list?)
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(110): error C2065: '…' : undeclared identifier
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(110): error C2448: 'FowardUnit' : function-style initializer appears to be a function definition
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(114): error C2065: '…' : undeclared identifier
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(114): error C2448: 'HazardDetectionUnit' : function-style initializer appears to be a function definition
