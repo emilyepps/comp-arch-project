@@ -212,7 +212,7 @@ void Execute ( )
 	switch(opcode) 
 	{
 		case 0x0001: // add
-			ALUOut= A + B;
+			EXMEM_ALUResult = A + B;
 			break;
 		case 0x0003: //and
 			ALUOut= A & B;
