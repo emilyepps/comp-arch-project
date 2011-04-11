@@ -163,7 +163,7 @@ int main ()
 			if( tempString.length() > 0 )
 			{
 				// Convert instruction from string to int
-				int tempInt = atoi( tempString.c_str() );
+				int tempInt = atoi( tempString.c_str() );	//PROBLEM!!  THIS WILL READ THE NUMBER AS A BASE 10 INTEGER, NOT A BINARY NUMBER!
 
 				// Store instruction in instruction memory
 				instMem[instCount] = tempInt;
