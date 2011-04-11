@@ -29,12 +29,12 @@ int instMem[64]; // Instruction Memory
 #define $t1 regFile[1]
 #define $t2 regFile[2]
 #define $t3 regFile[3]
-#define $t4 regFile[4]
-#define $t5 regFile[5]
-#define $t6 regFile[6]
-#define $t7 regFile[7]
-#define $t8 regFile[8]
-#define $t9 regFile[9]
+#define $v0 regFile[4]
+#define $v1 regFile[5]
+#define $v2 regFile[6]
+#define $v3 regFile[7]
+#define $a0 regFile[8]
+#define $a1 regFile[9]
 
 // Buffers
 // *Im having a hard time deciding what to name things LOL* - Stephen
@@ -131,21 +131,21 @@ int main ()
 
 	// Initialize Data Memory contents according to the project handout.
 	//
-	// Set Register File // (How do we want to redefine these registers?)
-	//$v0 = 0040 hex; // you can redefine $v0-3, $t0, and $a0-1 with
-	//$v1 = 1010 hex; // your register numbers such as $1, $2, etc.
-	//$v2 = 000F hex;
-	//$v3 = 00F0 hex;
-	//$t0 = 0000 hex;
-	//$a0 = 0010 hex;
-	//$a1 = 0005 hex;
-	//
+	// Set Register File // (How do we want to redefine these registers?)  (see below, until we figure something else out... -Chad)
+	$v0 = 0x0040;	//$v0 = 0040 hex; // you can redefine $v0-3, $t0, and $a0-1 with
+	$v1 = 0x1010;	//$v1 = 1010 hex; // your register numbers such as $1, $2, etc.
+	$v2 = 0x000F;	//$v2 = 000F hex;
+	$v3 = 0x00F0;	//$v3 = 00F0 hex;
+	$t0 = 0x0000;	//$t0 = 0000 hex;
+	$a0 = 0x0010;	//$a0 = 0010 hex;
+	$a1 = 0x0005;	//$a1 = 0005 hex;
+
 	// Set Data Memory
-	//Mem[$a0] = 0101 hex
-	//Mem[$a0+2] = 0110 hex
-	//Mem[$a0+4] = 0011 hex
-	//Mem[$a0+6] = 00F0 hex
-	//Mem[$a0+8] = 00FF hex
+	dataMem[$a0] = 0x0101;		//Mem[$a0] = 0101 hex
+	dataMem[$a0 + 2] = 0x0110;	//Mem[$a0+2] = 0110 hex
+	dataMem[$a0 + 4] = 0x0011;	//Mem[$a0+4] = 0011 hex
+	dataMem[$a0 + 6] = 0x00F0;	//Mem[$a0+6] = 00F0 hex
+	dataMem[$a0 + 8] = 0x00FF;	//Mem[$a0+8] = 00FF hex
 
 	// Read instructions from the input file and store them into memory. // (DONE)
 	ifstream f;
@@ -163,8 +163,7 @@ int main ()
 			if( tempString.length() > 0 )
 			{
 				// Convert instruction from string to int
-				int tempInt = atoi( tempString.c_str() );	//PROBLEM!!  THIS WILL READ THE NUMBER AS A BASE 10 INTEGER, NOT A BINARY NUMBER!
-
+				int tempInt = (int)strtol(tempString.c_str(),NULL,2);	//tempString is read as ASCII for binary bits, converted into a long int, typecasted to int
 				// Store instruction in instruction memory
 				instMem[instCount] = tempInt;
 			}
@@ -172,12 +171,12 @@ int main ()
 			instCount++;
 		}
 		
-		cout << "Done." << endl;
+		cout << "Done.\n\n" << endl;
 		f.close();
 	 }
 	else
 	{
-		cout << "ERROR: cannot open \"instructions.txt\", make sure it is in same folder as main.cpp" << endl;
+		cout << "ERROR: cannot open \"instructions.txt\", make sure it is in same folder as main.cpp\n\n" << endl;
 		return 0;
 	}
 
@@ -186,6 +185,11 @@ int main ()
 		cout << "regFile[" << i << "] = " << regFile[i] << endl;
 	for(int i = 0; i < 30; ++i)
 		cout << "dataMem[" << i << "] = " << dataMem[i] << endl;
+
+	//(for our own benefit - print instruction memory)
+	cout << "\nDEBUG: PRINTING INSTRUCTION MEM.\n";
+	for(int i = 0; i < 64; ++i)
+		cout << "instMem[" << i << "] = " << instMem[i] << endl;
 
 	// Set PC and execute program by fetching instruction from the memory Unit until the program ends. Looping.
 
@@ -209,7 +213,7 @@ void Decode ( )
 
 void Execute ( )
 {
-	switch(opcode) 
+/*	switch(opcode) 
 	{
 		case 0x0001: // add
 			EXMEM_ALUResult = A + B;
@@ -243,7 +247,8 @@ void Execute ( )
 			break;
 		default:
 			break;
-	} 
+	}
+*/
 } 
 
 void MemAccess () // (int ...) 
