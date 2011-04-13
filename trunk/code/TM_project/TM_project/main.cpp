@@ -4,6 +4,10 @@
 #include <fstream>
 #include <string>
 
+#define DATA_SIZE 512
+#define REG_SIZE 10
+#define INST_SIZE 64
+
 using namespace std;
 
 // Declare Functions
@@ -20,9 +24,9 @@ void InstructionsFromFile(string fileName);
 // I think he's expecting us to only pass the DATA around as parameters, not the whole buffer, etc.
 
 // Variables
-int dataMem[512]; // Data Memory
-int regFile[10]; // Register File
-int instMem[64]; // Instruction Memory
+int dataMem[DATA_SIZE]; // Data Memory
+int regFile[REG_SIZE]; // Register File
+int instMem[INST_SIZE]; // Instruction Memory
 
 // Register Defines (Optional -Chad)
 #define $t0 regFile[0]
@@ -179,6 +183,17 @@ int main ()
 		cout << "instMem[" << i << "] = " << instMem[i] << endl;
 
 	// Set PC and execute program by fetching instruction from the memory Unit until the program ends. Looping.
+	// How do you do this?
+	/*
+	for(int x = 0; x < INST_SIZE; x++)
+	{
+		Fetch(x);
+		Decode();
+		Execute();
+		MemAccess();
+		WriteBack();
+	}
+	*/
 
 	return 0;
 }
@@ -241,13 +256,9 @@ void Fetch (int PC)
 
 	// Store values in IF/ID
 	/*
-	struct IFID //For the IF/ID registers
-	{
-		// IF/ID
-		int PCInc;
-		int IF_Flush;
-		int Instruction;
-	};
+	IFID.PCInc;
+	IFID.IF_Flush;
+	IFID.Instruction;
 	*/
 }
 
@@ -259,30 +270,27 @@ void Decode ( )
 
 	// Store values in ID/EX
 	/*
-	struct IDEX //For the ID/EX registers
-	{
-		int RegisterOne;
-		int RegisterTwo; 
-		int SignExtendImmediate;
+		IDEX.RegisterOne;
+		IDEX.RegisterTwo; 
+		IDEX.SignExtendImmediate;
 
-		int IFID_RegisterRs;
-		int IFID_RegisterRt_toMux;		// Connects to Mux
-		int IFID_RegisterRt_toForward;	// Connects to ForwardingUnit
-		int IFID_RegisterRd;
+		IDEX.IFID_RegisterRs;
+		IDEX.IFID_RegisterRt_toMux;		// Connects to Mux
+		IDEX.IFID_RegisterRt_toForward;	// Connects to ForwardingUnit
+		IDEX.IFID_RegisterRd;
 
 		///// Control
 		// ID/EX
-		int ALUOp;
-		int ALUSrc;
-		int RegDst;
+		IDEX.ALUOp;
+		IDEX.ALUSrc;
+		IDEX.RegDst;
 		// EX/MEM
-		int MemRead;
-		int MemWrite;
+		IDEX.MemRead;
+		IDEX.MemWrite;
 		// MEM/WB
-		int RegWrite;
-		int MemtoReg;
+		IDEX.RegWrite;
+		IDEX.MemtoReg;
 		////
-	};
 	*/
 }
 
@@ -292,21 +300,18 @@ void Execute ( )
 
 	// Store values in EX/MEM registers
 	/*
-	struct EXMEM //For the EX/MEM registers
-	{
-		int ALUResult;
-		int ForwardBMuxResult;
-		int RegDstMuxResult;
+		EXMEM.ALUResult;
+		EXMEM.ForwardBMuxResult;
+		EXMEM.RegDstMuxResult;
 
 		///// Control
 		// EX/MEM
-		int MemRead;
-		int MemWrite;
+		EXMEM.MemRead;
+		EXMEM.MemWrite;
 		// MEM/WB
-		int RegWrite;
-		int MemtoReg;
+		EXMEM.RegWrite;
+		EXMEM.MemtoReg;
 		////
-	};
 	*/
 
 	// Example
@@ -355,29 +360,27 @@ void MemAccess () // (int ...)
 
 	// Store valeus in MEM/WB registers
 	/*
-	struct MEMWB //For the MEM/WB registers
-	{
-		int DataMemoryResult;
-		int ALUResult;
-		int EXMEM_RegisterRd;
+		MEMWB.DataMemoryResult;
+		MEMWB.ALUResult;
+		MEMWB.EXMEM_RegisterRd;
 
 		//// Control
 		// MEM/WB
-		int RegWrite;
-		int MemtoReg;
+		MEMWB.RegWrite;
+		MEMWB.MemtoReg;
 		////
-	};
 	*/
 }
 
 void WriteBack () 
 {
-
+	// One MUX
 }
 
 void ControUnit () // (int ...) 
 {
-
+	// Input: Instruction opcode
+	// Output: Control signals, IF.Flush
 }
 
 void FowardUnit () // How to use output values?
