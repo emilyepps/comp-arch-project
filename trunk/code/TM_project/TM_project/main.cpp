@@ -185,9 +185,9 @@ int main ()
 	// Set PC and execute program by fetching instruction from the memory Unit until the program ends. Looping.
 	// How do you do this?
 	/*
-	for(int x = 0; x < INST_SIZE; x++)
+	for(int x = 0; x < INST_SIZE; x++) // How do you know when to stop? After last instruction, still needs to run 4 more times
 	{
-		Fetch(x);
+		Fetch();
 		Decode();
 		Execute();
 		MemAccess();
