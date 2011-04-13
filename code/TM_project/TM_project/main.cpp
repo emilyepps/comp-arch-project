@@ -390,15 +390,15 @@ void FowardUnit () // How to use output values?
 
 	// EX Hazard
 	if ( EXMEM.RegWrite && ( EXMEM.RegDstMuxResult != 0 ) && ( EXMEM.RegDstMuxResult == IDEX.IFID_RegisterRs) )
-		ForwardA = 10;
+		ForwardA = 0x02;
 	if ( EXMEM.RegWrite && ( EXMEM.RegDstMuxResult != 0 ) && ( EXMEM.RegDstMuxResult == IDEX.IFID_RegisterRt_toForward) )
-		ForwardB = 10;
+		ForwardB = 0x02;
 
 	// MEM Hazard
 	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRs) )
-		ForwardA = 10;
+		ForwardA = 0x02;
 	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRt_toForward) )
-		ForwardB = 10;
+		ForwardB = 0x02;
 };
 
 void HazardDetectionUnit () 
