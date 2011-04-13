@@ -44,20 +44,7 @@ struct IFID //For the IF/ID registers
 	int PCInc;
 	int IF_Flush; // From now on make "."'s into "_"'s ?
 	int Instruction;
-
-	///// Control
-	// ID/EX
-	int ALUOp;
-	int ALUSrc;
-	int RegDst;
-	// EX/MEM
-	int MemRead;
-	int MemWrite;
-	// MEM/WB
-	int RegWrite;
-	int MemtoReg;
-	////
-};
+} IFID;
 
 struct IDEX //For the ID/EX registers
 {
@@ -82,13 +69,13 @@ struct IDEX //For the ID/EX registers
 	int RegWrite;
 	int MemtoReg;
 	////
-};
+} IDEX;
 
 struct EXMEM //For the EX/MEM registers
 {
 	int ALUResult;
 	int ForwardBMuxResult;
-	int RegDstMux;
+	int RegDstMuxResult;
 
 	///// Control
 	// EX/MEM
@@ -98,7 +85,7 @@ struct EXMEM //For the EX/MEM registers
 	int RegWrite;
 	int MemtoReg;
 	////
-};
+} EXMEM;
 
 struct MEMWB //For the MEM/WB registers
 {
@@ -111,7 +98,7 @@ struct MEMWB //For the MEM/WB registers
 	int RegWrite;
 	int MemtoReg;
 	////
-};
+} MEMWB;
 
 
 // Control Signals
@@ -196,24 +183,135 @@ int main ()
 	return 0;
 }
 
-void funcALU (int ALUOp, int ALU_A, int ALU_B) 
+// I keep getting confused about how our ALUControl works, updated ControlUnitExcel
+// Reads in two values (function code and ALUOp), outputs one value (that travels to ALU, what is it called?)
+void ALUControl (int SignExtendImmediate, int ALUOp) 
 {
-
+	if(ALUOp == 0)
+	{
+		switch(SignExtendImmediate)
+		{
+			case 0: // add
+				break;
+			case 1: // sub
+				break;
+			case 2: // and
+				break;
+			case 3: // or
+				break;
+			case 4: // xor
+				break;
+			case 5: // nor
+				break;
+			case 6: // slt
+				break;
+		}
+	}
+	else
+	{
+		switch(ALUOp)
+		{
+			case 1: // add
+				break;
+			case 2: // sub
+				break;
+			case 3: // and
+				break;
+			case 4: // or
+				break;
+			case 5: // xor
+				break;
+			case 6: // nor
+				break;
+			case 7: // slt	
+				break;
+			case 8: // sll
+				break;
+			case 9: // srl	
+				break;
+		}
+	}
 }
 
-void Fetch ( int PC) 
+void Fetch (int PC) 
 {
+	// What about Mux before PC?
 
+	int Instruction = instMem[PC]; // How to return instruction to where we need it?
+
+	// Store values in IF/ID
+	/*
+	struct IFID //For the IF/ID registers
+	{
+		// IF/ID
+		int PCInc;
+		int IF_Flush;
+		int Instruction;
+	};
+	*/
 }
 
 void Decode ( ) 
 {
+	// Read from RegFile
 
+	// Setup Control Unit
+
+	// Store values in ID/EX
+	/*
+	struct IDEX //For the ID/EX registers
+	{
+		int RegisterOne;
+		int RegisterTwo; 
+		int SignExtendImmediate;
+
+		int IFID_RegisterRs;
+		int IFID_RegisterRt_toMux;		// Connects to Mux
+		int IFID_RegisterRt_toForward;	// Connects to ForwardingUnit
+		int IFID_RegisterRd;
+
+		///// Control
+		// ID/EX
+		int ALUOp;
+		int ALUSrc;
+		int RegDst;
+		// EX/MEM
+		int MemRead;
+		int MemWrite;
+		// MEM/WB
+		int RegWrite;
+		int MemtoReg;
+		////
+	};
+	*/
 }
 
 void Execute ( )
 {
-/*	switch(opcode) 
+	// Deal with Mux's, ALU, ALUControl
+
+	// Store values in EX/MEM registers
+	/*
+	struct EXMEM //For the EX/MEM registers
+	{
+		int ALUResult;
+		int ForwardBMuxResult;
+		int RegDstMuxResult;
+
+		///// Control
+		// EX/MEM
+		int MemRead;
+		int MemWrite;
+		// MEM/WB
+		int RegWrite;
+		int MemtoReg;
+		////
+	};
+	*/
+
+	// Example
+	/*	
+	switch(opcode) 
 	{
 		case 0x0001: // add
 			EXMEM_ALUResult = A + B;
@@ -248,12 +346,28 @@ void Execute ( )
 		default:
 			break;
 	}
-*/
+	*/
 } 
 
 void MemAccess () // (int ...) 
 {
+	// Deal with DataMem
 
+	// Store valeus in MEM/WB registers
+	/*
+	struct MEMWB //For the MEM/WB registers
+	{
+		int DataMemoryResult;
+		int ALUResult;
+		int EXMEM_RegisterRd;
+
+		//// Control
+		// MEM/WB
+		int RegWrite;
+		int MemtoReg;
+		////
+	};
+	*/
 }
 
 void WriteBack () 
@@ -266,12 +380,27 @@ void ControUnit () // (int ...)
 
 }
 
-void FowardUnit ()
+void FowardUnit () // How to use output values?
 {
+	int ForwardA = 00;
+	int ForwardB = 00;
 
+	// EX Hazard
+	if ( EXMEM.RegWrite && ( EXMEM.RegDstMuxResult != 0 ) && ( EXMEM.RegDstMuxResult == IDEX.IFID_RegisterRs) )
+		ForwardA = 10;
+	if ( EXMEM.RegWrite && ( EXMEM.RegDstMuxResult != 0 ) && ( EXMEM.RegDstMuxResult == IDEX.IFID_RegisterRt_toForward) )
+		ForwardB = 10;
+
+	// MEM Hazard
+	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRs) )
+		ForwardA = 10;
+	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRt_toForward) )
+		ForwardB = 10;
 };
 
 void HazardDetectionUnit () 
 {
-
+	// IFID.RegisterRs and IFID.RegisterRt can be pulled straight from instruction
+	//if ( IDEX.MemRead && ( ( IDEX.IFID_RegisterRt_toForward == IFID.RegisterRs ) || ( IDEX.IFID_RegisterRt_toForward == IFID.RegisterRt) ) )
+		// stall pipeline
 };
