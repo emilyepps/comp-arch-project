@@ -164,6 +164,8 @@ int main ()
 			
 			instCount++;
 		}
+
+		// Add 4 more no op instructions to end of instruction memory, either add them in "instructions.txt" file or add them here
 		
 		cout << "Done.\n\n" << endl;
 		f.close();
@@ -185,66 +187,20 @@ int main ()
 	for(int i = 0; i < 64; ++i)
 		cout << "instMem[" << i << "] = " << instMem[i] << endl;
 
+	// Set all register pipelines and signals up - basically have no ops set up to run in all other stages when first executing
+		// [Insert Code Here]
+
 	// Set PC and execute program by fetching instruction from the memory Unit until the program ends. Looping.
 	// What should be inside of all the control signals and pipeline registers before starting? Do we need to set them?
 	// How do you know when to stop? (After last instruction, still needs to run a few more times right?)
 	PC = 0;
-	while( PC < instCount + 4 ) // While the program counter is less than the number of instructions, this will work until the last instructions, how do we keep executing to get the last instruction through all 5 stages? // add 4? 
+	while( PC < instCount ) // "While the program counter is less than the number of instructions"
 	{
-		// The if statements basically simulate no ops that should be running in the other stages when first executing and executing at the end of instruction list
-		// The if statements are not optimized for efficiency, but should be easy to understand
-		if( PC == 0 )
-		{
-			Fetch();
-		}
-		else if( PC == 1 )
-		{
-			Fetch();
-			Decode();
-		}
-		else if( PC == 2 )
-		{
-			Fetch();
-			Decode();
-			Execute();
-		}
-		else if( PC == 3 )
-		{
-			Fetch();
-			Decode();
-			Execute();
-			MemAccess();
-		}
-		else if( PC >= 4 && PC < instCount )
-		{
-			Fetch();
-			Decode();
-			Execute();
-			MemAccess();
-			WriteBack();
-		}
-		else if( PC == instCount )
-		{
-			Decode();
-			Execute();
-			MemAccess();
-			WriteBack();
-		}
-		else if( PC == instCount + 1 )
-		{
-			Execute();
-			MemAccess();
-			WriteBack();
-		}
-		else if( PC == instCount + 2 )
-		{
-			MemAccess();
-			WriteBack();
-		}
-		else if( PC == instCount + 3 )
-		{
-			WriteBack();
-		}
+		Fetch();
+		Decode();
+		Execute();
+		MemAccess();
+		WriteBack();
 
 		// Update all pipeline register values
 		IFID = IFIDtemp;
@@ -312,7 +268,8 @@ void Fetch ( )
 
 	// What about Mux before PC?
 
-	int Instruction = instMem[PC]; // How to return instruction to where we need it?
+
+	// IFIDtemp.Instruction = instMem[PC];
 
 	// Store values in IF/ID
 	/*
@@ -326,7 +283,8 @@ void Decode ( )
 {
 	// Read from RegFile
 
-	// Setup Control Unit
+	// Control Unit
+	// Hazard Detection Unit
 
 	// Store values in ID/EX
 	/*
@@ -357,6 +315,8 @@ void Decode ( )
 void Execute ( )
 {
 	// Deal with Mux's, ALU, ALUControl
+
+	// Forward Unit
 
 	// Store values in EX/MEM registers
 	/*
