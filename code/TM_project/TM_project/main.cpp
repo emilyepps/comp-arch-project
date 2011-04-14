@@ -106,7 +106,10 @@ struct MEMWB //For the MEM/WB registers
 
 
 // Control Signals
-int MemWrite, MemRead, RegDst, RegWrite, MemtoReg, ALUSrc, ALUOp;
+//int MemWrite, MemRead, RegDst, RegWrite, MemtoReg, ALUSrc, ALUOp;
+
+// Program Counter
+int PC;
 
 // Others
 
@@ -183,15 +186,65 @@ int main ()
 		cout << "instMem[" << i << "] = " << instMem[i] << endl;
 
 	// Set PC and execute program by fetching instruction from the memory Unit until the program ends. Looping.
-	// How do you do this?
-	/*
-	for(int x = 0; x < INST_SIZE; x++) // How do you know when to stop? After last instruction, still needs to run 4 more times
+	// What should be inside of all the control signals and pipeline registers before starting? Do we need to set them?
+	// How do you know when to stop? (After last instruction, still needs to run a few more times right?)
+	PC = 0;
+	while( PC < instCount + 4 ) // While the program counter is less than the number of instructions, this will work until the last instructions, how do we keep executing to get the last instruction through all 5 stages? // add 4? 
 	{
-		Fetch();
-		Decode();
-		Execute();
-		MemAccess();
-		WriteBack();
+		// The if statements basically simulate no ops that should be running in the other stages when first executing and executing at the end of instruction list
+		// The if statements are not optimized for efficiency, but should be easy to understand
+		if( PC == 0 )
+		{
+			Fetch();
+		}
+		else if( PC == 1 )
+		{
+			Fetch();
+			Decode();
+		}
+		else if( PC == 2 )
+		{
+			Fetch();
+			Decode();
+			Execute();
+		}
+		else if( PC == 3 )
+		{
+			Fetch();
+			Decode();
+			Execute();
+			MemAccess();
+		}
+		else if( PC >= 4 && PC < instCount )
+		{
+			Fetch();
+			Decode();
+			Execute();
+			MemAccess();
+			WriteBack();
+		}
+		else if( PC == instCount )
+		{
+			Decode();
+			Execute();
+			MemAccess();
+			WriteBack();
+		}
+		else if( PC == instCount + 1 )
+		{
+			Execute();
+			MemAccess();
+			WriteBack();
+		}
+		else if( PC == instCount + 2 )
+		{
+			MemAccess();
+			WriteBack();
+		}
+		else if( PC == instCount + 3 )
+		{
+			WriteBack();
+		}
 
 		// Update all pipeline register values
 		IFID = IFIDtemp;
@@ -199,7 +252,6 @@ int main ()
 		EXMEM = EXMEMtemp;
 		MEMWB = MEMWBtemp;
 	}
-	*/
 
 	return 0;
 }
@@ -254,8 +306,10 @@ void ALUControl (int SignExtendImmediate, int ALUOp)
 	}
 }
 
-void Fetch (int PC) 
+void Fetch ( ) 
 {
+	// Note: I created a global PC integer named: PC , We may end up needing a PCtemp
+
 	// What about Mux before PC?
 
 	int Instruction = instMem[PC]; // How to return instruction to where we need it?
