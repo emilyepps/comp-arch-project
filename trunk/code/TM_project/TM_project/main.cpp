@@ -12,7 +12,7 @@ using namespace std;
 
 // Declare Functions
 void funcALU (int ALUOp, int ALU_A, int ALU_B);
-void Fetch (int PC);
+void Fetch ();
 void Decode ();
 void Execute ();
 void MemAccess (); // (int ...)
@@ -20,7 +20,6 @@ void WriteBack ();
 void ControlUnit (); // (int ...)
 void FowardUnit ();
 void HazardDetectionUnit ();
-void InstructionsFromFile(string fileName);
 // I think he's expecting us to only pass the DATA around as parameters, not the whole buffer, etc.
 
 // Variables
@@ -40,17 +39,16 @@ int instMem[INST_SIZE]; // Instruction Memory
 #define $a0 regFile[8]
 #define $a1 regFile[9]
 
-// Buffers
-// *Im having a hard time deciding what to name things LOL* - Stephen
-struct IFID //For the IF/ID registers
+// Buffers - Pipelined Registers
+struct IFID
 {
-	// IF/ID
 	int PCInc;
-	int IF_Flush; // From now on make "."'s into "_"'s ?
+	int IF_Flush;
 	int Instruction;
+
 } IFID, IFIDtemp;
 
-struct IDEX //For the ID/EX registers
+struct IDEX
 {
 	int RegisterOne;
 	int RegisterTwo; 
@@ -72,10 +70,10 @@ struct IDEX //For the ID/EX registers
 	// MEM/WB
 	int RegWrite;
 	int MemtoReg;
-	////
+
 } IDEX, IDEXtemp;
 
-struct EXMEM //For the EX/MEM registers
+struct EXMEM
 {
 	int ALUResult;
 	int ForwardBMuxResult;
@@ -88,10 +86,10 @@ struct EXMEM //For the EX/MEM registers
 	// MEM/WB
 	int RegWrite;
 	int MemtoReg;
-	////
+	
 } EXMEM, EXMEMtemp;
 
-struct MEMWB //For the MEM/WB registers
+struct MEMWB
 {
 	int DataMemoryResult;
 	int ALUResult;
@@ -101,33 +99,79 @@ struct MEMWB //For the MEM/WB registers
 	// MEM/WB
 	int RegWrite;
 	int MemtoReg;
-	////
+	
 } MEMWB, MEMWBtemp;
 
+struct HAZARD
+{
+	// Inputs
+	int IDEX_MemRead;
+	int IDEX_RegisterRt;
+	int IFID_RegisterRs;
+	int IFID_RegisterRt;
+	int RegEQ; // For reduced branch delay
 
-// Control Signals
-//int MemWrite, MemRead, RegDst, RegWrite, MemtoReg, ALUSrc, ALUOp;
+	// Outputs
+	int PCWrite;
+	int IFID_Write;
+	int LinetoMux; // What to name this?
+	int PCSrc; // Extra input to control left branch mux
+
+} HAZARD, HAZARDtemp;
+
+struct CONTROL
+{
+	///// Control
+	int IF_Flush;
+	// ID/EX
+	int ALUOp;
+	int ALUSrc;
+	int RegDst;
+	// EX/MEM
+	int MemRead;
+	int MemWrite;
+	// MEM/WB
+	int RegWrite;
+	int MemtoReg;
+	
+} CONTROL, CONTROLtemp;
+
+struct FORWARD
+{
+	// Inputs
+	int IDEX_RegisterRs;
+	int IDEX_RegisterRt;
+	// EX Hazard
+	int EXMEM_RegWrite;
+	int EXMEM_RegisterRd;
+	// MEM Hazard
+	int MEMWB_RegWrite;
+	int MEMWB_RegisterRd;
+
+	// Outputs
+	int ForwardA;
+	int ForwardB;
+
+} FORWARD, FORWARDtemp;
 
 // Program Counter
 int PC;
 
-// Others
-
 int main ()
 {
 	// Clear Register File, Data Memory, and Instrution Memory // (DONE)
-	for(int i = 0; i < 10; ++i)
+	for(int i = 0; i < REG_SIZE; ++i)
 		regFile[i] = 0;
-	for(int i = 0; i < 512; ++i)
+	for(int i = 0; i < DATA_SIZE; ++i)
 		dataMem[i] = 0;
-	for(int i = 0; i < 64; ++i)
+	for(int i = 0; i < INST_SIZE; ++i)
 		instMem[i] = 0;
 
-	// Initialize Data Memory contents according to the project handout.
-	//
-	// Set Register File // (How do we want to redefine these registers?)  (see below, until we figure something else out... -Chad)
-	$v0 = 0x0040;	//$v0 = 0040 hex; // you can redefine $v0-3, $t0, and $a0-1 with
-	$v1 = 0x1010;	//$v1 = 1010 hex; // your register numbers such as $1, $2, etc.
+	// Initialize Data Memory contents according to the project handout
+	// Set Register File
+	// registers need to be redefined
+	$v0 = 0x0040;	//$v0 = 0040 hex; 
+	$v1 = 0x1010;	//$v1 = 1010 hex; 
 	$v2 = 0x000F;	//$v2 = 000F hex;
 	$v3 = 0x00F0;	//$v3 = 00F0 hex;
 	$t0 = 0x0000;	//$t0 = 0000 hex;
@@ -181,20 +225,83 @@ int main ()
 		cout << "regFile[" << i << "] = " << regFile[i] << endl;
 	for(int i = 0; i < 30; ++i)
 		cout << "dataMem[" << i << "] = " << dataMem[i] << endl;
-
-	//(for our own benefit - print instruction memory)
-	cout << "\nDEBUG: PRINTING INSTRUCTION MEM.\n";
+	cout << "\nDEBUG: PRINTING INSTRUCTION MEM.\n"; //(for our own benefit - print instruction memory)
 	for(int i = 0; i < 64; ++i)
 		cout << "instMem[" << i << "] = " << instMem[i] << endl;
 
 	// Set all register pipelines and signals up - basically have no ops set up to run in all other stages when first executing
-		// [Insert Code Here]
+	// Stage structures
+	IFID.PCInc = 2;
+	IFID.IF_Flush = 0;
+	IFID.Instruction = 0;
+
+	IDEX.RegisterOne = 0;
+	IDEX.RegisterTwo = 0; 
+	IDEX.SignExtendImmediate = 0;
+
+	IDEX.IFID_RegisterRs = 0;
+	IDEX.IFID_RegisterRt_toMux = 0;		
+	IDEX.IFID_RegisterRt_toForward = 0;	
+	IDEX.IFID_RegisterRd = 0;
+
+	IDEX.ALUOp = 0;
+	IDEX.ALUSrc = 0;
+	IDEX.RegDst = 0;
+
+	IDEX.MemRead = 0;
+	IDEX.MemWrite = 0;
+	
+	IDEX.RegWrite = 0;
+	IDEX.MemtoReg = 0;
+
+	EXMEM.ALUResult = 0;
+	EXMEM.ForwardBMuxResult = 0;
+	EXMEM.RegDstMuxResult = 0;
+
+	EXMEM.MemRead = 0;
+	EXMEM.MemWrite = 0;
+	EXMEM.RegWrite = 0;
+	EXMEM.MemtoReg = 0;
+
+	MEMWB.DataMemoryResult = 0;
+	MEMWB.ALUResult = 0;
+	MEMWB.EXMEM_RegisterRd = 0;
+
+	MEMWB.RegWrite = 0;
+	MEMWB.MemtoReg = 0;
+
+	// Set Hazard, Control and Forward units before execution
+	HAZARD.IDEX_MemRead = 0;
+	HAZARD.IDEX_RegisterRt = 0;
+	HAZARD.IFID_RegisterRs = 0;
+	HAZARD.IFID_RegisterRt = 0;
+	HAZARD.RegEQ = 0;
+	HAZARD.PCWrite = 0;
+	HAZARD.IFID_Write = 0;
+	HAZARD.LinetoMux = 0; // What to name this?
+	HAZARD.PCSrc = 0;
+
+	CONTROL.IF_Flush = 0;
+	CONTROL.ALUOp = 0;
+	CONTROL.ALUSrc = 0;
+	CONTROL.RegDst = 0;
+	CONTROL.MemRead = 0;
+	CONTROL.MemWrite = 0;
+	CONTROL.RegWrite = 0;
+	CONTROL.MemtoReg = 0;
+
+	FORWARD.IDEX_RegisterRs = 0;
+	FORWARD.IDEX_RegisterRt = 0;
+	FORWARD.EXMEM_RegWrite = 0;
+	FORWARD.EXMEM_RegisterRd = 0;
+	FORWARD.MEMWB_RegWrite = 0;
+	FORWARD.MEMWB_RegisterRd = 0;
+	FORWARD.ForwardA = 0;
+	FORWARD.ForwardB = 0;
 
 	// Set PC and execute program by fetching instruction from the memory Unit until the program ends. Looping.
-	// What should be inside of all the control signals and pipeline registers before starting? Do we need to set them?
-	// How do you know when to stop? (After last instruction, still needs to run a few more times right?)
 	PC = 0;
-	while( PC < instCount ) // "While the program counter is less than the number of instructions"
+	while( PC < instCount )
 	{
 		Fetch();
 		Decode();
@@ -207,12 +314,16 @@ int main ()
 		IDEX = IDEXtemp;
 		EXMEM = EXMEMtemp;
 		MEMWB = MEMWBtemp;
+
+		// Update units
+		CONTROL = CONTROLtemp;
+		HAZARD = HAZARDtemp;
+		FORWARD = FORWARDtemp;
 	}
 
 	return 0;
 }
 
-// I keep getting confused about how our ALUControl works, updated ControlUnitExcel
 // Reads in two values (function code and ALUOp), outputs one value (that travels to ALU, what is it called?)
 void ALUControl (int SignExtendImmediate, int ALUOp) 
 {
@@ -262,7 +373,7 @@ void ALUControl (int SignExtendImmediate, int ALUOp)
 	}
 }
 
-void Fetch ( ) 
+void Fetch () 
 {
 	// Note: I created a global PC integer named: PC , We may end up needing a PCtemp
 
@@ -335,18 +446,6 @@ void Execute ( )
 		case 0x0001: // add
 			EXMEM_ALUResult = A + B;
 			break;
-		case 0x0003: //and
-			ALUOut= A & B;
-			break;
-		case 0x0005: //mult
-			ALUOut= high(A,B);
-			break;
-		case 0x000a://slt
-			if (A < B)
-			ALUOut= 1;
-			else
-			ALUOut= 0;
-			break;
 		case 0x000a://sltu
 			if ((unsigned word)A < (unsigned word)B)
 			ALUOut= 1;
@@ -354,12 +453,6 @@ void Execute ( )
 			ALUOut= 0;
 			break;
 		case 0x000b://addi
-			ALUOut= A + sign_extend5to16((IR & 0x001F));
-			break;
-		case 0x000c://subi
-			ALUOut= A -sign_extend5to16((IR & 0x001F));
-			break;
-		case 0x0010://sw
 			ALUOut= A + sign_extend5to16((IR & 0x001F));
 			break;
 		default:
@@ -379,7 +472,7 @@ void MemAccess () // (int ...)
 	// MEM/WB
 	//MEMWBtemp.RegWrite;
 	//MEMWBtemp.MemtoReg;
-	////
+	
 }
 
 void WriteBack () 
@@ -391,6 +484,15 @@ void ControUnit () // (int ...)
 {
 	// Input: Instruction opcode
 	// Output: Control signals, IF.Flush
+
+	CONTROLtemp.IF_Flush;
+	CONTROLtemp.ALUOp;
+	CONTROLtemp.ALUSrc;
+	CONTROLtemp.RegDst;
+	CONTROLtemp.MemRead;
+	CONTROLtemp.MemWrite;
+	CONTROLtemp.RegWrite;
+	CONTROLtemp.MemtoReg;
 }
 
 void FowardUnit () // How to use output values?
@@ -409,6 +511,15 @@ void FowardUnit () // How to use output values?
 		ForwardA = 0x02;
 	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRt_toForward) )
 		ForwardB = 0x02;
+
+	FORWARDtemp.IDEX_RegisterRs;
+	FORWARDtemp.IDEX_RegisterRt;
+	FORWARDtemp.EXMEM_RegWrite;
+	FORWARDtemp.EXMEM_RegisterRd;
+	FORWARDtemp.MEMWB_RegWrite;
+	FORWARDtemp.MEMWB_RegisterRd;
+	FORWARDtemp.ForwardA;
+	FORWARDtemp.ForwardB;
 };
 
 void HazardDetectionUnit () 
@@ -416,4 +527,14 @@ void HazardDetectionUnit ()
 	// IFID.RegisterRs and IFID.RegisterRt can be pulled straight from instruction
 	//if ( IDEX.MemRead && ( ( IDEX.IFID_RegisterRt_toForward == IFID.RegisterRs ) || ( IDEX.IFID_RegisterRt_toForward == IFID.RegisterRt) ) )
 		// stall pipeline
+
+	HAZARDtemp.IDEX_MemRead;
+	HAZARDtemp.IDEX_RegisterRt;
+	HAZARDtemp.IFID_RegisterRs;
+	HAZARDtemp.IFID_RegisterRt;
+	HAZARDtemp.RegEQ;
+	HAZARDtemp.PCWrite;
+	HAZARDtemp.IFID_Write;
+	HAZARDtemp.LinetoMux; // What to name this?
+	HAZARDtemp.PCSrc;
 };
