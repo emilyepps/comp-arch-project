@@ -266,73 +266,67 @@ void Fetch ( )
 {
 	// Note: I created a global PC integer named: PC , We may end up needing a PCtemp
 
-	// What about Mux before PC?
+	// How to deal with MUX before PC?
 
+	IFIDtemp.Instruction = instMem[PC];
+	IFIDtemp.PCInc = PC + 2;
 
-	// IFIDtemp.Instruction = instMem[PC];
-
-	// Store values in IF/ID
-	/*
-	IFID.PCInc;
-	IFID.IF_Flush;
-	IFID.Instruction;
-	*/
+	// How to grab IF_Flush from Control Unit?
+	//IFIDtemp.IF_Flush;
 }
 
 void Decode ( ) 
 {
-	// Read from RegFile
+	// Instrution to use: IFID.Instruction
+	//IDEXtemp.IFID_RegisterRs;		// Example: = (IFID.Instruction).substring(12, 16);
+	//IDEXtemp.IFID_RegisterRt_toMux;
+	//IDEXtemp.IFID_RegisterRt_toForward;
+	//IDEXtemp.IFID_RegisterRd;
 
-	// Control Unit
+	// Read from RegFile
+	//IDEXtemp.RegisterOne;		// Example: = regFile[x]
+	//IDEXtemp.RegisterTwo; 
+
+	// Sign Extend
+	//IDEXtemp.SignExtendImmediate;
+
 	// Hazard Detection Unit
 
-	// Store values in ID/EX
-	/*
-		IDEX.RegisterOne;
-		IDEX.RegisterTwo; 
-		IDEX.SignExtendImmediate;
+	// Control Unit
 
-		IDEX.IFID_RegisterRs;
-		IDEX.IFID_RegisterRt_toMux;		// Connects to Mux
-		IDEX.IFID_RegisterRt_toForward;	// Connects to ForwardingUnit
-		IDEX.IFID_RegisterRd;
+	///// Control
+	// ID/EX
+	//IDEXtemp.ALUOp;
+	//IDEXtemp.ALUSrc;
+	//IDEXtemp.RegDst;
+	// EX/MEM
+	//IDEXtemp.MemRead;
+	//IDEXtemp.MemWrite;
+	// MEM/WB
+	//IDEXtemp.RegWrite;
+	//IDEXtemp.MemtoReg;
+	////
 
-		///// Control
-		// ID/EX
-		IDEX.ALUOp;
-		IDEX.ALUSrc;
-		IDEX.RegDst;
-		// EX/MEM
-		IDEX.MemRead;
-		IDEX.MemWrite;
-		// MEM/WB
-		IDEX.RegWrite;
-		IDEX.MemtoReg;
-		////
-	*/
+	// Other stuff not listed yet
 }
 
 void Execute ( )
 {
-	// Deal with Mux's, ALU, ALUControl
-
 	// Forward Unit
 
-	// Store values in EX/MEM registers
-	/*
-		EXMEM.ALUResult;
-		EXMEM.ForwardBMuxResult;
-		EXMEM.RegDstMuxResult;
+	// Deal with Mux's, ALU, ALUControl
+	//EXMEMtemp.ALUResult;
+	//EXMEMtemp.ForwardBMuxResult;
+	//EXMEMtemp.RegDstMuxResult;
 
-		///// Control
-		// EX/MEM
-		EXMEM.MemRead;
-		EXMEM.MemWrite;
-		// MEM/WB
-		EXMEM.RegWrite;
-		EXMEM.MemtoReg;
-		////
-	*/
+	///// Control
+	// EX/MEM
+	//EXMEMtemp.MemRead;
+	//EXMEMtemp.MemWrite;
+	// MEM/WB
+	//EXMEMtemp.RegWrite;
+	//EXMEMtemp.MemtoReg;
+	////
 
 	// Example
 	/*	
@@ -377,19 +371,15 @@ void Execute ( )
 void MemAccess () // (int ...) 
 {
 	// Deal with DataMem
+	//MEMWBtemp.ALUResult;
+	//MEMWBtemp.EXMEM_RegisterRd;
+	//MEMWBtemp.DataMemoryResult;
 
-	// Store valeus in MEM/WB registers
-	/*
-		MEMWB.DataMemoryResult;
-		MEMWB.ALUResult;
-		MEMWB.EXMEM_RegisterRd;
-
-		//// Control
-		// MEM/WB
-		MEMWB.RegWrite;
-		MEMWB.MemtoReg;
-		////
-	*/
+	//// Control
+	// MEM/WB
+	//MEMWBtemp.RegWrite;
+	//MEMWBtemp.MemtoReg;
+	////
 }
 
 void WriteBack () 
