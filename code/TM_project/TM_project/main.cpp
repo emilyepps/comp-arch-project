@@ -377,13 +377,14 @@ void Fetch ()
 {
 	// Note: I created a global PC integer named: PC , We may end up needing a PCtemp
 
-	// How to deal with MUX before PC?
+	// MUX before PC
+	if(HAZARD.PCSrc == 0)
+		IFIDtemp.Instruction = instMem[IFID.PCInc];
+	else
+		//IFIDtemp.Instruction = instMem[ ? ]; // Value comes from Reduced Branch Shift Adder, where is that value stored?
 
-	IFIDtemp.Instruction = instMem[PC];
-	IFIDtemp.PCInc = PC + 2;
-
-	// How to grab IF_Flush from Control Unit?
-	//IFIDtemp.IF_Flush;
+	IFIDtemp.PCInc += 2;
+	IFIDtemp.IF_Flush = CONTROL.IF_Flush;
 }
 
 void Decode ( ) 
