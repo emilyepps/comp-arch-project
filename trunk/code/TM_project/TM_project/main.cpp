@@ -48,7 +48,7 @@ struct IFID //For the IF/ID registers
 	int PCInc;
 	int IF_Flush; // From now on make "."'s into "_"'s ?
 	int Instruction;
-} IFID;
+} IFID, IFIDtemp;
 
 struct IDEX //For the ID/EX registers
 {
@@ -73,7 +73,7 @@ struct IDEX //For the ID/EX registers
 	int RegWrite;
 	int MemtoReg;
 	////
-} IDEX;
+} IDEX, IDEXtemp;
 
 struct EXMEM //For the EX/MEM registers
 {
@@ -89,7 +89,7 @@ struct EXMEM //For the EX/MEM registers
 	int RegWrite;
 	int MemtoReg;
 	////
-} EXMEM;
+} EXMEM, EXMEMtemp;
 
 struct MEMWB //For the MEM/WB registers
 {
@@ -102,7 +102,7 @@ struct MEMWB //For the MEM/WB registers
 	int RegWrite;
 	int MemtoReg;
 	////
-} MEMWB;
+} MEMWB, MEMWBtemp;
 
 
 // Control Signals
@@ -192,6 +192,12 @@ int main ()
 		Execute();
 		MemAccess();
 		WriteBack();
+
+		// Update all pipeline register values
+		IFID = IFIDtemp;
+		IDEX = IDEXtemp;
+		EXMEM = EXMEMtemp;
+		MEMWB = MEMWBtemp;
 	}
 	*/
 
