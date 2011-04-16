@@ -1,5 +1,5 @@
 // 16bit RISC Processor - Computer Architecture - Spring 2011
-// Authors: Stephen Cernota, Jeff Hsu, Chad S. (lol)
+// Authors: Stephen Cernota, Jeff Hsu, Chad Schrepferman
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -11,22 +11,22 @@
 using namespace std;
 
 // Declare Functions
-void funcALU (int ALUOp, int ALU_A, int ALU_B);
+void ALUControlAndALU (int SignExtendImmediate, int ALUOp, int ALU_A, int ALU_B);
 void Fetch ();
 void Decode ();
 void Execute ();
-void MemAccess (); // (int ...)
+void MemAccess ();
 void WriteBack ();
 void HazardDetectionUnit (char * op);
 void ControlUnit (char * op);
-void FowardUnit ();
+void ForwardUnit ();
 
 // Variables
 int dataMem[DATA_SIZE]; // Data Memory
-int regFile[REG_SIZE]; // Register File
+int regFile[REG_SIZE];  // Register File
 int instMem[INST_SIZE]; // Instruction Memory
 
-// Register Defines (Optional -Chad)
+// Register Defines
 #define $t0 regFile[0]
 #define $t1 regFile[1]
 #define $t2 regFile[2]
@@ -54,8 +54,8 @@ struct IDEX
 	int SignExtendImmediate;
 
 	int IFID_RegisterRs;
-	int IFID_RegisterRt_toMux;		// Connects to Mux
-	int IFID_RegisterRt_toForward;	// Connects to ForwardingUnit
+	int IFID_RegisterRt_toMux;
+	int IFID_RegisterRt_toForward;
 	int IFID_RegisterRd;
 
 	int ALUOp;
@@ -94,20 +94,18 @@ struct MEMWB
 
 struct HAZARD
 {
-	// Inputs
 	int IDEX_MemRead;
 	int IDEX_RegisterRt;
 	int IFID_RegisterRs;
 	int IFID_RegisterRt;
 	int RegEQ; // For reduced branch delay
 
-	// Outputs
 	int PCWrite;
 	int IFID_Write;
 	int LinetoMux;
 	int PCSrc; // Extra input to control left branch mux
 
-} HAZARD, HAZARDtemp;
+} HAZARD;
 
 struct CONTROL
 {
@@ -121,32 +119,29 @@ struct CONTROL
 	int RegWrite;
 	int MemtoReg;
 	
-} CONTROL, CONTROLtemp;
+} CONTROL;
 
 struct FORWARD
 {
-	// Inputs
 	int IDEX_RegisterRs;
 	int IDEX_RegisterRt;
-	// EX Hazard
 	int EXMEM_RegWrite;
 	int EXMEM_RegisterRd;
-	// MEM Hazard
 	int MEMWB_RegWrite;
 	int MEMWB_RegisterRd;
 
-	// Outputs
 	int ForwardA;
 	int ForwardB;
 
-} FORWARD, FORWARDtemp;
+} FORWARD;
 
-// Program Counter
+// Global Signals
 int PC;
+int WBMuxResult;
 
 int main ()
 {
-	// Clear Register File, Data Memory, and Instrution Memory // (DONE)
+	// Clear Register File, Data Memory, and Instrution Memory
 	for(int i = 0; i < REG_SIZE; ++i)
 		regFile[i] = 0;
 	for(int i = 0; i < DATA_SIZE; ++i)
@@ -154,10 +149,8 @@ int main ()
 	for(int i = 0; i < INST_SIZE; ++i)
 		instMem[i] = 0;
 
-	// Initialize Data Memory contents according to the project handout
 	// Set Register File
-	// registers need to be redefined
-	$v0 = 0x0040;	//$v0 = 0040 hex; 
+	$v0 = 0x0040;	//$v0 = 0040 hex; // registers need to be redefined //////////////////////
 	$v1 = 0x1010;	//$v1 = 1010 hex; 
 	$v2 = 0x000F;	//$v2 = 000F hex;
 	$v3 = 0x00F0;	//$v3 = 00F0 hex;
@@ -172,7 +165,7 @@ int main ()
 	dataMem[$a0 + 6] = 0x00F0;	//Mem[$a0+6] = 00F0 hex
 	dataMem[$a0 + 8] = 0x00FF;	//Mem[$a0+8] = 00FF hex
 
-	// Read instructions from the input file and store them into memory. // (DONE)
+	// Read instructions from the input file and store them into memory.
 	ifstream f;
 	string tempString;
 	int instCount = 0;
@@ -187,16 +180,12 @@ int main ()
 			getline(f, tempString);
 			if( tempString.length() > 0 )
 			{
-				// Convert instruction from string to int
 				int tempInt = (int)strtol(tempString.c_str(),NULL,2);	//tempString is read as ASCII for binary bits, converted into a long int, typecasted to int
 				instMem[instCount] = tempInt;
-			}
-			
+			}	
 			instCount++;
 		}
-
-		// Add 4 more no op instructions to end of instruction memory, either add them in "instructions.txt" file or add them here
-		
+		// Add 4 more no op instructions to end of instruction memory, either add them in "instructions.txt" file or add them here	
 		cout << "Done.\n\n" << endl;
 		f.close();
 	 }
@@ -206,17 +195,15 @@ int main ()
 		return 0;
 	}
 
-	// Print initial memory and register contents // (DONE)
+	// Print initial memory and register contents
 	for(int i = 0; i < 10; ++i)
 		cout << "regFile[" << i << "] = " << regFile[i] << endl;
 	for(int i = 0; i < 30; ++i)
 		cout << "dataMem[" << i << "] = " << dataMem[i] << endl;
-	cout << "\nDEBUG: PRINTING INSTRUCTION MEM.\n"; //(for our own benefit - print instruction memory)
 	for(int i = 0; i < 64; ++i)
 		cout << "instMem[" << i << "] = " << instMem[i] << endl;
 
-	// Set all register pipelines and signals up - basically have no ops set up to run in all other stages when first executing
-	// Stage structures
+	// Setup signals before execution
 	IFID.PCInc = 2;
 	IFID.IF_Flush = 0;
 	IFID.Instruction = 0;
@@ -300,36 +287,40 @@ int main ()
 		IDEX = IDEXtemp;
 		EXMEM = EXMEMtemp;
 		MEMWB = MEMWBtemp;
-
-		// Update units
-		CONTROL = CONTROLtemp;
-		HAZARD = HAZARDtemp;
-		FORWARD = FORWARDtemp;
 	}
 
 	return 0;
 }
 
-// Reads in two values (function code and ALUOp), outputs one value (that travels to ALU, what is it called?)
-void ALUControl (int SignExtendImmediate, int ALUOp) 
+void ALUControlAndALU (int SignExtendImmediate, int ALUOp, int ALU_A, int ALU_B) 
 {
 	if(ALUOp == 0)
 	{
 		switch(SignExtendImmediate)
 		{
 			case 0: // add
+				EXMEMtemp.ALUResult = ALU_A + ALU_B;
 				break;
 			case 1: // sub
+				EXMEMtemp.ALUResult = ALU_A - ALU_B;
 				break;
 			case 2: // and
+				EXMEMtemp.ALUResult = ALU_A & ALU_B;
 				break;
 			case 3: // or
+				EXMEMtemp.ALUResult = ALU_A | ALU_B;
 				break;
 			case 4: // xor
+				EXMEMtemp.ALUResult = ALU_A ^ ALU_B;
 				break;
 			case 5: // nor
+				EXMEMtemp.ALUResult = ~(ALU_A | ALU_B);
 				break;
 			case 6: // slt
+				if( ALU_A < ALU_B)
+					EXMEMtemp.ALUResult = 1;
+				else
+					EXMEMtemp.ALUResult = 0;
 				break;
 		}
 	}
@@ -338,22 +329,34 @@ void ALUControl (int SignExtendImmediate, int ALUOp)
 		switch(ALUOp)
 		{
 			case 1: // add
+				EXMEMtemp.ALUResult = ALU_A + ALU_B;
 				break;
 			case 2: // sub
+				EXMEMtemp.ALUResult = ALU_A - ALU_B;
 				break;
 			case 3: // and
+				EXMEMtemp.ALUResult = ALU_A & ALU_B;
 				break;
 			case 4: // or
+				EXMEMtemp.ALUResult = ALU_A | ALU_B;
 				break;
 			case 5: // xor
+				EXMEMtemp.ALUResult = ALU_A ^ ALU_B;
 				break;
 			case 6: // nor
+				EXMEMtemp.ALUResult = ~(ALU_A | ALU_B);
 				break;
 			case 7: // slt	
+				if( ALU_A < ALU_B)
+					EXMEMtemp.ALUResult = 1;
+				else
+					EXMEMtemp.ALUResult = 0;
 				break;
 			case 8: // sll
+				//EXMEMtemp.ALUResult = ALU_A << ALU_B; // This does not match Proposal pg4, Is this an immediate instruction? Do we need to use the immediate value? ///////////////////
 				break;
 			case 9: // srl	
+				//EXMEMtemp.ALUResult = ALU_A >> ALU_B; // This does not match Proposal pg4, Is this an immediate instruction? Do we need to use the immediate value? ///////////////////
 				break;
 		}
 	}
@@ -361,7 +364,7 @@ void ALUControl (int SignExtendImmediate, int ALUOp)
 
 void Fetch () 
 {
-	// Note: I created a global PC integer named: PC , We may end up needing a PCtemp
+	// Note: I created a global integer named: PC
 
 	// MUX before PC
 	if(HAZARD.PCSrc == 0)
@@ -379,6 +382,7 @@ void Decode ( )
 	char inst[16];
 	itoa(IFID.Instruction, inst, 2);
 
+	// Grab sections of instruction
 	char rs[3] = {inst[4], inst[5], inst[6]};
 	IDEXtemp.IFID_RegisterRs = atoi(rs);
 	char rt[3] = {inst[7], inst[8], inst[9]};
@@ -392,7 +396,7 @@ void Decode ( )
 	IDEXtemp.RegisterTwo = regFile[IDEXtemp.IFID_RegisterRt_toMux]; 
 
 	// Sign Extend
-	//IDEXtemp.SignExtendImmediate;
+	//IDEXtemp.SignExtendImmediate; // How many bits??? //////////////////////////////
 
 	// Grab Opcode
 	char opcode[4] = {inst[0], inst[1], inst[2], inst[3]};
@@ -404,15 +408,15 @@ void Decode ( )
 	ControlUnit(opcode);
 
 	// Mux after Control Unit
-	if( HAZARDtemp.LinetoMux == 0 )
+	if( HAZARD.LinetoMux == 0 )
 	{
-		IDEXtemp.ALUOp = CONTROLtemp.ALUOp;
-		IDEXtemp.ALUSrc = CONTROLtemp.ALUSrc;
-		IDEXtemp.RegDst = CONTROLtemp.RegDst;
-		IDEXtemp.MemRead = CONTROLtemp.MemRead;
-		IDEXtemp.MemWrite = CONTROLtemp.MemWrite;
-		IDEXtemp.RegWrite = CONTROLtemp.RegWrite;
-		IDEXtemp.MemtoReg = CONTROLtemp.MemtoReg;
+		IDEXtemp.ALUOp = CONTROL.ALUOp;
+		IDEXtemp.ALUSrc = CONTROL.ALUSrc;
+		IDEXtemp.RegDst = CONTROL.RegDst;
+		IDEXtemp.MemRead = CONTROL.MemRead;
+		IDEXtemp.MemWrite = CONTROL.MemWrite;
+		IDEXtemp.RegWrite = CONTROL.RegWrite;
+		IDEXtemp.MemtoReg = CONTROL.MemtoReg;
 	}
 	else
 	{
@@ -425,108 +429,118 @@ void Decode ( )
 		IDEXtemp.MemtoReg = 0;
 	}
 
-	// Other stuff not listed yet
+	// Shift Adder Thing /////////////////////////////////
 }
 
-void Execute ( )
+void Execute()
 {
 	// Forward Unit
+	ForwardUnit();
 
-	// Deal with Mux's, ALU, ALUControl
-	//EXMEMtemp.ALUResult;
-	//EXMEMtemp.ForwardBMuxResult;
-	//EXMEMtemp.RegDstMuxResult;
+	// ForwardA Mux
+	int ForwardAResult;
+	if( FORWARD.ForwardA == 0 )
+		ForwardAResult = IDEX.RegisterOne;
+	else if( FORWARD.ForwardA == 1 )
+		ForwardAResult; // the value coming out of the MUX in the WB stage ///////////////////////
+	else
+		ForwardAResult = EXMEM.ALUResult;
 
-	///// Control
-	// EX/MEM
-	//EXMEMtemp.MemRead;
-	//EXMEMtemp.MemWrite;
-	// MEM/WB
-	//EXMEMtemp.RegWrite;
-	//EXMEMtemp.MemtoReg;
-	////
+	// ForwardB Mux
+	if( FORWARD.ForwardB == 0 )
+		EXMEMtemp.ForwardBMuxResult = IDEX.RegisterTwo;
+	else if( FORWARD.ForwardB == 1 )
+		EXMEMtemp.ForwardBMuxResult = EXMEM.ALUResult;
+	else
+		//EXMEMtemp.ForwardBMuxResult = ?; // how to/where to get value coming out of the MUX in the WB stage /////////////////////
 
-	// Example
-	/*	
-	switch(opcode) 
-	{
-		case 0x0001: // add
-			EXMEM_ALUResult = A + B;
-			break;
-		case 0x000a://sltu
-			if ((unsigned word)A < (unsigned word)B)
-			ALUOut= 1;
-			else
-			ALUOut= 0;
-			break;
-		case 0x000b://addi
-			ALUOut= A + sign_extend5to16((IR & 0x001F));
-			break;
-		default:
-			break;
-	}
-	*/
+	// RegDst Mux
+	if( IDEX.RegDst == 0 )
+		EXMEMtemp.RegDstMuxResult = IDEX.IFID_RegisterRt_toMux;
+	else
+		EXMEMtemp.RegDstMuxResult = IDEX.IFID_RegisterRd;
+
+	// MUX Before ALU
+	int MUXBeforeALUResult;
+	if( IDEX.ALUSrc == 0 )
+		MUXBeforeALUResult = EXMEMtemp.ForwardBMuxResult;
+	else
+		MUXBeforeALUResult = IDEX.SignExtendImmediate;
+
+	// ALU Control and ALU
+	ALUControlAndALU(IDEX.SignExtendImmediate, IDEX.ALUOp, ForwardAResult, MUXBeforeALUResult);
+
+	// Control
+	EXMEMtemp.MemRead = IDEX.MemRead;
+	EXMEMtemp.MemWrite = IDEX.MemWrite;
+	EXMEMtemp.RegWrite = IDEX.RegWrite;
+	EXMEMtemp.MemtoReg = IDEX.MemtoReg;
 } 
 
-void MemAccess () // (int ...) 
+void MemAccess ()
 {
 	// Deal with DataMem
-	//MEMWBtemp.ALUResult;
-	//MEMWBtemp.EXMEM_RegisterRd;
-	//MEMWBtemp.DataMemoryResult;
+	if( EXMEM.MemRead == 1 )
+		//MEMWBtemp.DataMemoryResult = dataMem[ ? ]; // Which value is address? ///////////////////
 
-	//// Control
-	// MEM/WB
-	//MEMWBtemp.RegWrite;
-	//MEMWBtemp.MemtoReg;
+	if( EXMEM.MemWrite == 1 )
+		//dataMem[ ? ] = ?; // Which values go where? ///////////////////
+
+	MEMWBtemp.ALUResult = EXMEM.ALUResult;
+	MEMWBtemp.EXMEM_RegisterRd = EXMEM.RegDstMuxResult;
+
+	// Control
+	MEMWBtemp.RegWrite = EXMEM.RegWrite;
+	MEMWBtemp.MemtoReg = EXMEM.MemtoReg;
 	
 }
 
 void WriteBack () 
 {
-	// One MUX
+	// MUX
+	// global variable: int WBMuxResult
+	if( MEMWB.MemtoReg == 0 )
+		WBMuxResult = MEMWB.DataMemoryResult;
+	else
+		WBMuxResult = MEMWB.ALUResult;
 }
 
 void HazardDetectionUnit (char * op) 
 {
 	int opcode = atoi(op);
 
-	HAZARDtemp.IFID_RegisterRs = IDEXtemp.IFID_RegisterRs;
-	HAZARDtemp.IFID_RegisterRt = IDEXtemp.IFID_RegisterRt_toMux;
+	HAZARD.IFID_RegisterRs = IDEXtemp.IFID_RegisterRs;
+	HAZARD.IFID_RegisterRt = IDEXtemp.IFID_RegisterRt_toMux;
 
-	if ( IDEX.MemRead && ( ( IDEX.IFID_RegisterRt_toForward == HAZARDtemp.IFID_RegisterRs) || ( IDEX.IFID_RegisterRt_toForward == HAZARDtemp.IFID_RegisterRt) ) )
-		// stall pipeline
-		// How to stall pipeline? //////////////////////////
+	if ( IDEX.MemRead && ( ( IDEX.IFID_RegisterRt_toForward == HAZARD.IFID_RegisterRs) || ( IDEX.IFID_RegisterRt_toForward == HAZARD.IFID_RegisterRt) ) )
+		// stall pipeline // How to stall pipeline? //////////////////////////
 
 	// RegEQ - for reduced branch delay
 	if ( IDEXtemp.RegisterOne == IDEXtemp.RegisterTwo )
-		HAZARDtemp.RegEQ = 1;
+		HAZARD.RegEQ = 1;
 	else
-		HAZARDtemp.RegEQ = 0;
+		HAZARD.RegEQ = 0;
 
 	// What to do with all these signals? How to use opcode to set some of these signals? ////////////////////////////////
-	HAZARDtemp.IDEX_MemRead;
-	HAZARDtemp.IDEX_RegisterRt;
-	HAZARDtemp.PCWrite;
-	HAZARDtemp.IFID_Write;
-	HAZARDtemp.LinetoMux;
-	HAZARDtemp.PCSrc;
+	HAZARD.IDEX_MemRead;
+	HAZARD.IDEX_RegisterRt;
+	HAZARD.PCWrite;
+	HAZARD.IFID_Write;
+	HAZARD.LinetoMux;
+	HAZARD.PCSrc;
 };
 
 void ControUnit (char * op)
 {
-	// Input: Instruction opcode
-	// Output: Control signals, IF.Flush
-
 	int opcode = atoi(op);
 
-	CONTROLtemp.IF_Flush; // How to set this? ////////////////
+	CONTROL.IF_Flush; // How to set this? ////////////////////
 
 	// RegDst
 	if(opcode == 0)
-		CONTROLtemp.RegDst = 1;
+		CONTROL.RegDst = 1;
 	else
-		CONTROLtemp.RegDst = 0;
+		CONTROL.RegDst = 0;
 
 	// ALUOp
 	int ALUOp;
@@ -547,62 +561,60 @@ void ControUnit (char * op)
 		case 12: ALUOp = 1; break;
 		default: ALUOp = 1; break; // What number to make nops and jumps? This affects ALU ////////////////
 	}
-	CONTROLtemp.ALUOp = ALUOp;
+	CONTROL.ALUOp = ALUOp;
 
 	// ALUSrc
 	if( opcode == 0 || opcode == 12 || opcode == 14 )
-		CONTROLtemp.ALUSrc = 0;
+		CONTROL.ALUSrc = 0;
 	else
-		CONTROLtemp.ALUSrc = 1;
+		CONTROL.ALUSrc = 1;
 
 	// MemRead
 	if( opcode == 10 )
-		CONTROLtemp.MemRead = 1;
+		CONTROL.MemRead = 1;
 	else
-		CONTROLtemp.MemRead = 0;
+		CONTROL.MemRead = 0;
 
 	// MemWrite
 	if( opcode == 11 )
-		CONTROLtemp.MemWrite = 1;
+		CONTROL.MemWrite = 1;
 	else
-		CONTROLtemp.MemWrite = 0;
+		CONTROL.MemWrite = 0;
 
 	// RegWrite
 	if( opcode >= 11)
-		CONTROLtemp.RegWrite = 0;
+		CONTROL.RegWrite = 0;
 	else
-		CONTROLtemp.RegWrite = 1;
+		CONTROL.RegWrite = 1;
 
 	// MemtoReg
 	if( opcode == 10)
-		CONTROLtemp.MemtoReg = 1;
+		CONTROL.MemtoReg = 1;
 	else
-		CONTROLtemp.MemtoReg = 0;
+		CONTROL.MemtoReg = 0;
 }
 
-void FowardUnit ()
+void ForwardUnit ()
 {
-	int ForwardA = 00;
-	int ForwardB = 00;
+	FORWARD.ForwardA = 0;
+	FORWARD.ForwardB = 0;
+
+	FORWARD.IDEX_RegisterRs = IDEX.IFID_RegisterRs;
+	FORWARD.IDEX_RegisterRt = IDEX.IFID_RegisterRt_toForward;
+	FORWARD.EXMEM_RegWrite = EXMEM.RegWrite; 
+	FORWARD.EXMEM_RegisterRd = EXMEM.RegDstMuxResult;
+	FORWARD.MEMWB_RegWrite = MEMWB.RegWrite;
+	FORWARD.MEMWB_RegisterRd = MEMWB.EXMEM_RegisterRd;
 
 	// EX Hazard
 	if ( EXMEM.RegWrite && ( EXMEM.RegDstMuxResult != 0 ) && ( EXMEM.RegDstMuxResult == IDEX.IFID_RegisterRs) )
-		ForwardA = 0x02;
+		FORWARD.ForwardA = 2; // 0x02;
 	if ( EXMEM.RegWrite && ( EXMEM.RegDstMuxResult != 0 ) && ( EXMEM.RegDstMuxResult == IDEX.IFID_RegisterRt_toForward) )
-		ForwardB = 0x02;
+		FORWARD.ForwardB = 2; // 0x02;
 
 	// MEM Hazard
 	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRs) )
-		ForwardA = 0x02;
+		FORWARD.ForwardA = 1; // 0x01;
 	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRt_toForward) )
-		ForwardB = 0x02;
-
-	FORWARDtemp.IDEX_RegisterRs;
-	FORWARDtemp.IDEX_RegisterRt;
-	FORWARDtemp.EXMEM_RegWrite;
-	FORWARDtemp.EXMEM_RegisterRd;
-	FORWARDtemp.MEMWB_RegWrite;
-	FORWARDtemp.MEMWB_RegisterRd;
-	FORWARDtemp.ForwardA;
-	FORWARDtemp.ForwardB;
+		FORWARD.ForwardB = 1; // 0x01;
 };
