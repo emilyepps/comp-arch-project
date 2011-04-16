@@ -17,10 +17,9 @@ void Decode ();
 void Execute ();
 void MemAccess (); // (int ...)
 void WriteBack ();
-void ControlUnit (); // (int ...)
+void HazardDetectionUnit (char * op);
+void ControlUnit (char * op);
 void FowardUnit ();
-void HazardDetectionUnit ();
-// I think he's expecting us to only pass the DATA around as parameters, not the whole buffer, etc.
 
 // Variables
 int dataMem[DATA_SIZE]; // Data Memory
@@ -59,15 +58,11 @@ struct IDEX
 	int IFID_RegisterRt_toForward;	// Connects to ForwardingUnit
 	int IFID_RegisterRd;
 
-	///// Control
-	// ID/EX
 	int ALUOp;
 	int ALUSrc;
 	int RegDst;
-	// EX/MEM
 	int MemRead;
 	int MemWrite;
-	// MEM/WB
 	int RegWrite;
 	int MemtoReg;
 
@@ -79,11 +74,8 @@ struct EXMEM
 	int ForwardBMuxResult;
 	int RegDstMuxResult;
 
-	///// Control
-	// EX/MEM
 	int MemRead;
 	int MemWrite;
-	// MEM/WB
 	int RegWrite;
 	int MemtoReg;
 	
@@ -95,8 +87,6 @@ struct MEMWB
 	int ALUResult;
 	int EXMEM_RegisterRd;
 
-	//// Control
-	// MEM/WB
 	int RegWrite;
 	int MemtoReg;
 	
@@ -114,23 +104,20 @@ struct HAZARD
 	// Outputs
 	int PCWrite;
 	int IFID_Write;
-	int LinetoMux; // What to name this?
+	int LinetoMux;
 	int PCSrc; // Extra input to control left branch mux
 
 } HAZARD, HAZARDtemp;
 
 struct CONTROL
 {
-	///// Control
 	int IF_Flush;
-	// ID/EX
+
 	int ALUOp;
 	int ALUSrc;
 	int RegDst;
-	// EX/MEM
 	int MemRead;
 	int MemWrite;
-	// MEM/WB
 	int RegWrite;
 	int MemtoReg;
 	
@@ -202,7 +189,6 @@ int main ()
 			{
 				// Convert instruction from string to int
 				int tempInt = (int)strtol(tempString.c_str(),NULL,2);	//tempString is read as ASCII for binary bits, converted into a long int, typecasted to int
-				// Store instruction in instruction memory
 				instMem[instCount] = tempInt;
 			}
 			
@@ -278,11 +264,11 @@ int main ()
 	HAZARD.RegEQ = 0;
 	HAZARD.PCWrite = 0;
 	HAZARD.IFID_Write = 0;
-	HAZARD.LinetoMux = 0; // What to name this?
+	HAZARD.LinetoMux = 0;
 	HAZARD.PCSrc = 0;
 
 	CONTROL.IF_Flush = 0;
-	CONTROL.ALUOp = 0;
+	CONTROL.ALUOp = 1;
 	CONTROL.ALUSrc = 0;
 	CONTROL.RegDst = 0;
 	CONTROL.MemRead = 0;
@@ -389,18 +375,17 @@ void Fetch ()
 
 void Decode ( ) 
 {
-	// Instrution to use: IFID.Instruction
-	// How to turn decimal to binary string?
+	// Convert integer form of instruction to char array
 	char inst[16];
 	itoa(IFID.Instruction, inst, 2);
 
-	char temp[3] = {inst[4], inst[5], inst[6]};
-	IDEXtemp.IFID_RegisterRs = atoi(temp);
-	char temp[3] = {inst[7], inst[8], inst[9]};
-	IDEXtemp.IFID_RegisterRt_toMux = atoi(temp);
-	IDEXtemp.IFID_RegisterRt_toForward = atoi(temp);
-	char temp[3] = {inst[10], inst[11], inst[12]};
-	IDEXtemp.IFID_RegisterRd = atoi(temp);
+	char rs[3] = {inst[4], inst[5], inst[6]};
+	IDEXtemp.IFID_RegisterRs = atoi(rs);
+	char rt[3] = {inst[7], inst[8], inst[9]};
+	IDEXtemp.IFID_RegisterRt_toMux = atoi(rt);
+	IDEXtemp.IFID_RegisterRt_toForward = atoi(rt);
+	char rd[3] = {inst[10], inst[11], inst[12]};
+	IDEXtemp.IFID_RegisterRd = atoi(rd);
 
 	// Read from RegFile
 	IDEXtemp.RegisterOne = regFile[IDEXtemp.IFID_RegisterRs];
@@ -409,22 +394,36 @@ void Decode ( )
 	// Sign Extend
 	//IDEXtemp.SignExtendImmediate;
 
+	// Grab Opcode
+	char opcode[4] = {inst[0], inst[1], inst[2], inst[3]};
+
 	// Hazard Detection Unit
+	HazardDetectionUnit(opcode);
 
 	// Control Unit
+	ControlUnit(opcode);
 
-	///// Control
-	// ID/EX
-	//IDEXtemp.ALUOp;
-	//IDEXtemp.ALUSrc;
-	//IDEXtemp.RegDst;
-	// EX/MEM
-	//IDEXtemp.MemRead;
-	//IDEXtemp.MemWrite;
-	// MEM/WB
-	//IDEXtemp.RegWrite;
-	//IDEXtemp.MemtoReg;
-	////
+	// Mux after Control Unit
+	if( HAZARDtemp.LinetoMux == 0 )
+	{
+		IDEXtemp.ALUOp = CONTROLtemp.ALUOp;
+		IDEXtemp.ALUSrc = CONTROLtemp.ALUSrc;
+		IDEXtemp.RegDst = CONTROLtemp.RegDst;
+		IDEXtemp.MemRead = CONTROLtemp.MemRead;
+		IDEXtemp.MemWrite = CONTROLtemp.MemWrite;
+		IDEXtemp.RegWrite = CONTROLtemp.RegWrite;
+		IDEXtemp.MemtoReg = CONTROLtemp.MemtoReg;
+	}
+	else
+	{
+		IDEXtemp.ALUOp = 0;
+		IDEXtemp.ALUSrc = 0;
+		IDEXtemp.RegDst = 0;
+		IDEXtemp.MemRead = 0;
+		IDEXtemp.MemWrite = 0;
+		IDEXtemp.RegWrite = 0;
+		IDEXtemp.MemtoReg = 0;
+	}
 
 	// Other stuff not listed yet
 }
@@ -488,22 +487,100 @@ void WriteBack ()
 	// One MUX
 }
 
-void ControUnit () // (int ...) 
+void HazardDetectionUnit (char * op) 
+{
+	int opcode = atoi(op);
+
+	HAZARDtemp.IFID_RegisterRs = IDEXtemp.IFID_RegisterRs;
+	HAZARDtemp.IFID_RegisterRt = IDEXtemp.IFID_RegisterRt_toMux;
+
+	if ( IDEX.MemRead && ( ( IDEX.IFID_RegisterRt_toForward == HAZARDtemp.IFID_RegisterRs) || ( IDEX.IFID_RegisterRt_toForward == HAZARDtemp.IFID_RegisterRt) ) )
+		// stall pipeline
+		// How to stall pipeline? //////////////////////////
+
+	// RegEQ - for reduced branch delay
+	if ( IDEXtemp.RegisterOne == IDEXtemp.RegisterTwo )
+		HAZARDtemp.RegEQ = 1;
+	else
+		HAZARDtemp.RegEQ = 0;
+
+	// What to do with all these signals? How to use opcode to set some of these signals? ////////////////////////////////
+	HAZARDtemp.IDEX_MemRead;
+	HAZARDtemp.IDEX_RegisterRt;
+	HAZARDtemp.PCWrite;
+	HAZARDtemp.IFID_Write;
+	HAZARDtemp.LinetoMux;
+	HAZARDtemp.PCSrc;
+};
+
+void ControUnit (char * op)
 {
 	// Input: Instruction opcode
 	// Output: Control signals, IF.Flush
 
-	CONTROLtemp.IF_Flush;
-	CONTROLtemp.ALUOp;
-	CONTROLtemp.ALUSrc;
-	CONTROLtemp.RegDst;
-	CONTROLtemp.MemRead;
-	CONTROLtemp.MemWrite;
-	CONTROLtemp.RegWrite;
-	CONTROLtemp.MemtoReg;
+	int opcode = atoi(op);
+
+	CONTROLtemp.IF_Flush; // How to set this? ////////////////
+
+	// RegDst
+	if(opcode == 0)
+		CONTROLtemp.RegDst = 1;
+	else
+		CONTROLtemp.RegDst = 0;
+
+	// ALUOp
+	int ALUOp;
+	switch(opcode)
+	{
+		case 0: ALUOp = 0; break;
+		case 1: ALUOp = 8; break;
+		case 2: ALUOp = 9; break;
+		case 3: ALUOp = 1; break;
+		case 4: ALUOp = 2; break;
+		case 5: ALUOp = 3; break;
+		case 6: ALUOp = 4; break;
+		case 7: ALUOp = 5; break;
+		case 8: ALUOp = 6; break;
+		case 9: ALUOp = 7; break;
+		case 10: ALUOp = 1; break;
+		case 11: ALUOp = 1; break;
+		case 12: ALUOp = 1; break;
+		default: ALUOp = 1; break; // What number to make nops and jumps? This affects ALU ////////////////
+	}
+	CONTROLtemp.ALUOp = ALUOp;
+
+	// ALUSrc
+	if( opcode == 0 || opcode == 12 || opcode == 14 )
+		CONTROLtemp.ALUSrc = 0;
+	else
+		CONTROLtemp.ALUSrc = 1;
+
+	// MemRead
+	if( opcode == 10 )
+		CONTROLtemp.MemRead = 1;
+	else
+		CONTROLtemp.MemRead = 0;
+
+	// MemWrite
+	if( opcode == 11 )
+		CONTROLtemp.MemWrite = 1;
+	else
+		CONTROLtemp.MemWrite = 0;
+
+	// RegWrite
+	if( opcode >= 11)
+		CONTROLtemp.RegWrite = 0;
+	else
+		CONTROLtemp.RegWrite = 1;
+
+	// MemtoReg
+	if( opcode == 10)
+		CONTROLtemp.MemtoReg = 1;
+	else
+		CONTROLtemp.MemtoReg = 0;
 }
 
-void FowardUnit () // How to use output values?
+void FowardUnit ()
 {
 	int ForwardA = 00;
 	int ForwardB = 00;
@@ -528,21 +605,4 @@ void FowardUnit () // How to use output values?
 	FORWARDtemp.MEMWB_RegisterRd;
 	FORWARDtemp.ForwardA;
 	FORWARDtemp.ForwardB;
-};
-
-void HazardDetectionUnit () 
-{
-	// IFID.RegisterRs and IFID.RegisterRt can be pulled straight from instruction
-	//if ( IDEX.MemRead && ( ( IDEX.IFID_RegisterRt_toForward == IFID.RegisterRs ) || ( IDEX.IFID_RegisterRt_toForward == IFID.RegisterRt) ) )
-		// stall pipeline
-
-	HAZARDtemp.IDEX_MemRead;
-	HAZARDtemp.IDEX_RegisterRt;
-	HAZARDtemp.IFID_RegisterRs;
-	HAZARDtemp.IFID_RegisterRt;
-	HAZARDtemp.RegEQ;
-	HAZARDtemp.PCWrite;
-	HAZARDtemp.IFID_Write;
-	HAZARDtemp.LinetoMux; // What to name this?
-	HAZARDtemp.PCSrc;
 };
