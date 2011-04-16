@@ -390,14 +390,21 @@ void Fetch ()
 void Decode ( ) 
 {
 	// Instrution to use: IFID.Instruction
-	//IDEXtemp.IFID_RegisterRs;		// Example: = (IFID.Instruction).substring(12, 16);
-	//IDEXtemp.IFID_RegisterRt_toMux;
-	//IDEXtemp.IFID_RegisterRt_toForward;
-	//IDEXtemp.IFID_RegisterRd;
+	// How to turn decimal to binary string?
+	char inst[16];
+	itoa(IFID.Instruction, inst, 2);
+
+	char temp[3] = {inst[4], inst[5], inst[6]};
+	IDEXtemp.IFID_RegisterRs = atoi(temp);
+	char temp[3] = {inst[7], inst[8], inst[9]};
+	IDEXtemp.IFID_RegisterRt_toMux = atoi(temp);
+	IDEXtemp.IFID_RegisterRt_toForward = atoi(temp);
+	char temp[3] = {inst[10], inst[11], inst[12]};
+	IDEXtemp.IFID_RegisterRd = atoi(temp);
 
 	// Read from RegFile
-	//IDEXtemp.RegisterOne;		// Example: = regFile[x]
-	//IDEXtemp.RegisterTwo; 
+	IDEXtemp.RegisterOne = regFile[IDEXtemp.IFID_RegisterRs];
+	IDEXtemp.RegisterTwo = regFile[IDEXtemp.IFID_RegisterRt_toMux]; 
 
 	// Sign Extend
 	//IDEXtemp.SignExtendImmediate;
