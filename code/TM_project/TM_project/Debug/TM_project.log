@@ -1,3 +1,5 @@
 ﻿  main.cpp
-  LINK : C:\Users\Chad\Desktop\CompArch Project\code\TM_project\Debug\TM_project.exe not found or not built by the last incremental link; performing full link
-  TM_project.vcxproj -> C:\Users\Chad\Desktop\CompArch Project\code\TM_project\Debug\TM_project.exe
+c:\users\chad\desktop\comparch project\code\tm_project\tm_project\main.cpp(383): warning C4996: 'itoa': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _itoa. See online help for details.
+          c:\program files\microsoft visual studio 10.0\vc\include\stdlib.h(867) : see declaration of 'itoa'
+main.obj : error LNK2019: unresolved external symbol "void __cdecl ControlUnit(char *)" (?ControlUnit@@YAXPAD@Z) referenced in function "void __cdecl Decode(void)" (?Decode@@YAXXZ)
+C:\Users\Chad\Desktop\CompArch Project\code\TM_project\Debug\TM_project.exe : fatal error LNK1120: 1 unresolved externals

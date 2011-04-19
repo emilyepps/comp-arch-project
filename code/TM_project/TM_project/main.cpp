@@ -44,6 +44,7 @@ struct IFID
 	int PCInc;
 	int IF_Flush;
 	int Instruction;
+	int ID_BranchAddress;
 
 } IFID, IFIDtemp;
 
@@ -207,6 +208,8 @@ int main ()
 	IFID.PCInc = 2;
 	IFID.IF_Flush = 0;
 	IFID.Instruction = 0;
+	IFID.ID_BranchAddress = 0;
+
 
 	IDEX.RegisterOne = 0;
 	IDEX.RegisterTwo = 0; 
@@ -370,7 +373,8 @@ void Fetch ()
 	if(HAZARD.PCSrc == 0)
 		IFIDtemp.Instruction = instMem[IFID.PCInc];
 	else
-		//IFIDtemp.Instruction = instMem[ ? ]; // Value comes from Reduced Branch Shift Adder, where is that value stored?
+		//had to just make another global, to carry across stages
+		IFIDtemp.Instruction = instMem[IFID.ID_BranchAddress]; // Value comes from Reduced Branch Shift Adder, where is that value stored?
 
 	IFIDtemp.PCInc += 2;
 	IFIDtemp.IF_Flush = CONTROL.IF_Flush;
@@ -396,7 +400,8 @@ void Decode ( )
 	IDEXtemp.RegisterTwo = regFile[IDEXtemp.IFID_RegisterRt_toMux]; 
 
 	// Sign Extend
-	//IDEXtemp.SignExtendImmediate; // How many bits??? //////////////////////////////
+	
+	//IDEXtemp.SignExtendImmediate = ; // How many bits??? //////////////////////////////
 
 	// Grab Opcode
 	char opcode[4] = {inst[0], inst[1], inst[2], inst[3]};
@@ -430,6 +435,8 @@ void Decode ( )
 	}
 
 	// Shift Adder Thing /////////////////////////////////
+	IFID.PCInc + (IDEXtemp.SignExtendImmediate << 1);
+
 }
 
 void Execute()
