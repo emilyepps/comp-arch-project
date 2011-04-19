@@ -44,7 +44,6 @@ struct IFID
 	int PCInc;
 	int IF_Flush;
 	int Instruction;
-	int ID_BranchAddress;
 
 } IFID, IFIDtemp;
 
@@ -92,6 +91,12 @@ struct MEMWB
 	int MemtoReg;
 	
 } MEMWB, MEMWBtemp;
+
+struct FloatingBuf	//data that flows backwards, but doesn't pass through a buffer (isn't stored)
+{
+	int ID_BranchAddress;
+	int WB_MuxOutcome;
+} FB;
 
 struct HAZARD
 {
@@ -208,8 +213,6 @@ int main ()
 	IFID.PCInc = 2;
 	IFID.IF_Flush = 0;
 	IFID.Instruction = 0;
-	IFID.ID_BranchAddress = 0;
-
 
 	IDEX.RegisterOne = 0;
 	IDEX.RegisterTwo = 0; 
@@ -245,6 +248,9 @@ int main ()
 
 	MEMWB.RegWrite = 0;
 	MEMWB.MemtoReg = 0;
+
+	FB.ID_BranchAddress = 0;
+	FB.WB_MuxOutcome = 0;
 
 	// Set Hazard, Control and Forward units before execution
 	HAZARD.IDEX_MemRead = 0;
@@ -374,7 +380,7 @@ void Fetch ()
 		IFIDtemp.Instruction = instMem[IFID.PCInc];
 	else
 		//had to just make another global, to carry across stages
-		IFIDtemp.Instruction = instMem[IFID.ID_BranchAddress]; // Value comes from Reduced Branch Shift Adder, where is that value stored?
+		IFIDtemp.Instruction = instMem[FB.ID_BranchAddress]; // Value comes from Reduced Branch Shift Adder, where is that value stored?
 
 	IFIDtemp.PCInc += 2;
 	IFIDtemp.IF_Flush = CONTROL.IF_Flush;
@@ -400,8 +406,8 @@ void Decode ( )
 	IDEXtemp.RegisterTwo = regFile[IDEXtemp.IFID_RegisterRt_toMux]; 
 
 	// Sign Extend
-	
-	//IDEXtemp.SignExtendImmediate = ; // How many bits??? //////////////////////////////
+	char immediate[6] = {inst[10],inst[11],inst[12],inst[13],inst[14],inst[15]};
+	IDEXtemp.SignExtendImmediate = atoi(immediate); // How many bits??? ////////////////////////////// DONE...i think
 
 	// Grab Opcode
 	char opcode[4] = {inst[0], inst[1], inst[2], inst[3]};
@@ -434,9 +440,8 @@ void Decode ( )
 		IDEXtemp.MemtoReg = 0;
 	}
 
-	// Shift Adder Thing /////////////////////////////////
-	IFID.PCInc + (IDEXtemp.SignExtendImmediate << 1);
-
+	// Shift Adder Thing ///////////////////////////////////////DONE...i think
+	FB.ID_BranchAddress = IFID.PCInc + (IDEXtemp.SignExtendImmediate << 1);
 }
 
 void Execute()
@@ -449,7 +454,7 @@ void Execute()
 	if( FORWARD.ForwardA == 0 )
 		ForwardAResult = IDEX.RegisterOne;
 	else if( FORWARD.ForwardA == 1 )
-		ForwardAResult; // the value coming out of the MUX in the WB stage ///////////////////////
+		ForwardAResult = FB.WB_MuxOutcome; // the value coming out of the MUX in the WB stage ///////////////////////DONE...I think
 	else
 		ForwardAResult = EXMEM.ALUResult;
 
@@ -459,7 +464,7 @@ void Execute()
 	else if( FORWARD.ForwardB == 1 )
 		EXMEMtemp.ForwardBMuxResult = EXMEM.ALUResult;
 	else
-		//EXMEMtemp.ForwardBMuxResult = ?; // how to/where to get value coming out of the MUX in the WB stage /////////////////////
+		EXMEMtemp.ForwardBMuxResult = FB.WB_MuxOutcome; // how to/where to get value coming out of the MUX in the WB stage /////////////////////DONE...I think
 
 	// RegDst Mux
 	if( IDEX.RegDst == 0 )
@@ -488,7 +493,7 @@ void MemAccess ()
 {
 	// Deal with DataMem
 	if( EXMEM.MemRead == 1 )
-		//MEMWBtemp.DataMemoryResult = dataMem[ ? ]; // Which value is address? ///////////////////
+		MEMWBtemp.DataMemoryResult = dataMem[EXMEM.ALUResult]; // Which value is address? ///////////////////DONE
 
 	if( EXMEM.MemWrite == 1 )
 		//dataMem[ ? ] = ?; // Which values go where? ///////////////////
