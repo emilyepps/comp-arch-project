@@ -35,6 +35,9 @@ int instMem[INST_SIZE]; // Instruction Memory
 #define $t0 regFile[5]
 #define $a0 regFile[6]
 #define $a1 regFile[7]
+#define $a2 regFile[8]
+#define $a3 regFile[9]
+
 //last two registers unimplemented, since we use only three bits to represent regs
 
 // Buffers - Pipelined Registers
@@ -94,7 +97,7 @@ struct MEMWB
 
 struct FloatingBuf	//data that flows backwards, but doesn't pass through a buffer (isn't stored)
 {
-	int ID_BranchAddress;
+	int ID_BranchJumpAddress;
 	int WB_MuxOutcome;
 } FB;
 
@@ -162,6 +165,8 @@ int main ()
 	$t0 = 0x0000;	//$t0 = 0000 hex;
 	$a0 = 0x0010;	//$a0 = 0010 hex;
 	$a1 = 0x0005;	//$a1 = 0005 hex;
+	$a2 = 0x0000;	
+	$a3 = 0x0000;
 
 	// Set Data Memory
 	dataMem[$a0] = 0x0101;		//Mem[$a0] = 0101 hex
@@ -247,7 +252,7 @@ int main ()
 	MEMWB.RegWrite = 0;
 	MEMWB.MemtoReg = 0;
 
-	FB.ID_BranchAddress = 0;
+	FB.ID_BranchJumpAddress = 0;
 	FB.WB_MuxOutcome = 0;
 
 	// Set Hazard, Control and Forward units before execution
@@ -310,7 +315,7 @@ void Fetch ()
 		}
 		else
 		{
-			IFIDtemp.Instruction = instMem[FB.ID_BranchAddress];
+			IFIDtemp.Instruction = instMem[FB.ID_BranchJumpAddress];
 		}
 
 	}
@@ -410,7 +415,7 @@ void Decode ( )
 	}
 
 	// Branch Shift Adder
-	FB.ID_BranchAddress = IFID.PCInc + (IDEXtemp.SignExtendImmediate << 1);
+	FB.ID_BranchJumpAddress = IFID.PCInc + (IDEXtemp.SignExtendImmediate << 1);
 
 	// Write Data, Write Reg
 	if( MEMWB.RegWrite == 1 )
