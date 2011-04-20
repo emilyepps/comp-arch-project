@@ -143,7 +143,6 @@ struct FORWARD
 
 // Global Signals
 int PC;
-int WBMuxResult;
 
 int main ()
 {
@@ -510,11 +509,10 @@ void MemAccess ()
 void WriteBack () 
 {
 	// MUX
-	// global variable: int WBMuxResult
 	if( MEMWB.MemtoReg == 0 )
-		WBMuxResult = MEMWB.DataMemoryResult;
+		FB.WB_MuxOutcome = MEMWB.DataMemoryResult;
 	else
-		WBMuxResult = MEMWB.ALUResult;
+		FB.WB_MuxOutcome = MEMWB.ALUResult;
 }
 
 void HazardDetectionUnit (char * op) 
