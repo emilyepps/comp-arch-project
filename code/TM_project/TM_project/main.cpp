@@ -27,16 +27,16 @@ int regFile[REG_SIZE];  // Register File
 int instMem[INST_SIZE]; // Instruction Memory
 
 // Register Defines 
-#define $t0 regFile[0] // How to name registers? ////////////////////////////////////////////////////
-#define $t1 regFile[1]
-#define $t2 regFile[2]
-#define $t3 regFile[3]
-#define $v0 regFile[4]
-#define $v1 regFile[5]
-#define $v2 regFile[6]
-#define $v3 regFile[7]
-#define $a0 regFile[8]
-#define $a1 regFile[9]
+#define $zero regFile[0]
+#define $v0 regFile[1]
+#define $v1 regFile[2]
+#define $v2 regFile[3]
+#define $v3 regFile[4]
+#define $t0 regFile[5]
+#define $a0 regFile[6]
+#define $a1 regFile[7]
+#define $a2 regFile[8]
+#define $a3 regFile[9]
 
 // Buffers - Pipelined Registers
 struct IFID
