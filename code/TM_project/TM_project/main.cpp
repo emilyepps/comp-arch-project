@@ -11,7 +11,7 @@
 using namespace std;
 
 // Declare Functions
-void ALUControlAndALU (int SignExtendImmediate, int ALUOp, int ALU_A, int ALU_B);
+void ALU(int opcode, int SignExtendImmediate, int ALU_A, int ALU_B);
 void Fetch ();
 void Decode ();
 void Execute ();
@@ -65,6 +65,7 @@ struct IDEX
 	int MemWrite;
 	int RegWrite;
 	int MemtoReg;
+	int Opcode;
 
 } IDEX, IDEXtemp;
 
@@ -225,12 +226,11 @@ int main ()
 	IDEX.ALUOp = 0;
 	IDEX.ALUSrc = 0;
 	IDEX.RegDst = 0;
-
 	IDEX.MemRead = 0;
 	IDEX.MemWrite = 0;
-	
 	IDEX.RegWrite = 0;
 	IDEX.MemtoReg = 0;
+	IDEX.Opcode = 0;
 
 	EXMEM.ALUResult = 0;
 	EXMEM.ForwardBMuxResult = 0;
@@ -329,7 +329,7 @@ void Decode ( )
 	itoa(IFID.Instruction, inst, 10);
 
 	// Grab sections of instruction
-	char rs[3] = {inst[4], inst[5], inst[6]};
+	char rs[4] = {inst[4], inst[5], inst[6], inst[7]};
 	int binNum = 0;
 	for(int x = 3; x >= 0; x--)
 	{ 
@@ -338,7 +338,7 @@ void Decode ( )
 	}
 	IDEXtemp.IFID_RegisterRs = binNum;
 
-	char rt[3] = {inst[7], inst[8], inst[9]};
+	char rt[4] = {inst[8], inst[9], inst[10], inst[11]};
 	binNum = 0;
 	for(int x = 3; x >= 0; x--)
 	{ 
@@ -348,7 +348,7 @@ void Decode ( )
 	IDEXtemp.IFID_RegisterRt_toMux = binNum;
 	IDEXtemp.IFID_RegisterRt_toForward = binNum;
 
-	char rd[3] = {inst[10], inst[11], inst[12]};
+	char rd[4] = {inst[12], inst[13], inst[14], inst[15]};
 	binNum = 0;
 	for(int x = 3; x >= 0; x--)
 	{ 
@@ -362,17 +362,25 @@ void Decode ( )
 	IDEXtemp.RegisterTwo = regFile[IDEXtemp.IFID_RegisterRt_toMux]; 
 
 	// Sign Extend
-	char immediate[6] = {inst[10], inst[11], inst[12], inst[13], inst[14], inst[15]};
+	char immediate[4] = {inst[12], inst[13], inst[14], inst[15]};
 	binNum = 0;
-	for(int x = 5; x >= 0; x--)
+	for(int x = 3; x >= 0; x--)
 	{ 
 		char a[1] = {immediate[x]};
-		binNum += atoi(a) * 2^(5-x);
+		binNum += atoi(a) * 2^(3-x);
 	}
 	IDEXtemp.SignExtendImmediate = binNum; 
 
 	// Grab Opcode
 	char opcode[4] = {inst[0], inst[1], inst[2], inst[3]};
+	binNum = 0;
+	for(int x = 3; x >= 0; x--)
+	{ 
+		char a[1] = {opcode[x]};
+		binNum += atoi(a) * 2^(3-x);
+	}
+	// Pass opcode
+	IDEXtemp.Opcode = binNum;
 
 	// Hazard Detection Unit
 	HazardDetectionUnit(opcode);
@@ -446,7 +454,7 @@ void Execute()
 		MUXBeforeALUResult = IDEX.SignExtendImmediate;
 
 	// ALU Control and ALU
-	ALUControlAndALU(IDEX.SignExtendImmediate, IDEX.ALUOp, ForwardAResult, MUXBeforeALUResult);
+	ALU(IDEX.Opcode, IDEX.SignExtendImmediate, ForwardAResult, MUXBeforeALUResult);
 
 	// Control
 	EXMEMtemp.MemRead = IDEX.MemRead;
@@ -485,10 +493,10 @@ void WriteBack ()
 void HazardDetectionUnit (char * op) 
 {
 	int binNum = 0;
-	for(int x = 5; x >= 0; x--)
+	for(int x = 3; x >= 0; x--)
 	{ 
 		char a[1] = {op[x]};
-		binNum += atoi(a) * 2^(5-x);
+		binNum += atoi(a) * 2^(3-x);
 	}
 
 	HAZARD.IFID_RegisterRs = IDEXtemp.IFID_RegisterRs;
@@ -507,7 +515,7 @@ void HazardDetectionUnit (char * op)
 		HAZARD.LinetoMux = 0;
 	}
 
-	if( binNum == 12 || binNum == 13 )
+	if( binNum == 14 || binNum == 15 ) 
 		HAZARD.PCSrc = 1;
 	else
 		HAZARD.PCSrc = 0;
@@ -524,63 +532,47 @@ void HazardDetectionUnit (char * op)
 
 void ControlUnit (char * op)
 { 
-	int opcode = atoi(op); // If this representation causes a problem later, we can change it to adhere to the HazardDetectionUnits representation (binNum)
+	int binNum = 0;
+	for(int x = 3; x >= 0; x--)
+	{ 
+		char a[1] = {op[x]};
+		binNum += atoi(a) * 2^(3-x);
+	}
 
 	//CONTROL.IF_Flush; // Not using
 
 	// RegDst
-	if(opcode == 0)
+	if(binNum <= 6)
 		CONTROL.RegDst = 1;
 	else
 		CONTROL.RegDst = 0;
 
-	// ALUOp
-	int ALUOp;
-	switch(opcode)
-	{
-		case 0: ALUOp = 0; break;
-		case 1: ALUOp = 8; break;
-		case 10: ALUOp = 9; break;
-		case 11: ALUOp = 1; break;
-		case 100: ALUOp = 2; break;
-		case 101: ALUOp = 3; break;
-		case 110: ALUOp = 4; break;
-		case 111: ALUOp = 5; break;
-		case 1000: ALUOp = 6; break;
-		case 1001: ALUOp = 7; break;
-		case 1010: ALUOp = 1; break;
-		case 1011: ALUOp = 1; break;
-		case 1100: ALUOp = 1; break;
-		default: ALUOp = 1; break;
-	}
-	CONTROL.ALUOp = ALUOp;
-
 	// ALUSrc
-	if( opcode == 0 || opcode == 1100 || opcode == 1110 )
+	if( binNum <= 6 || binNum == 14)
 		CONTROL.ALUSrc = 0;
 	else
 		CONTROL.ALUSrc = 1;
 
 	// MemRead
-	if( opcode == 1010 )
+	if( binNum == 12 )
 		CONTROL.MemRead = 1;
 	else
 		CONTROL.MemRead = 0;
 
 	// MemWrite
-	if( opcode == 1011 )
+	if( binNum == 13 )
 		CONTROL.MemWrite = 1;
 	else
 		CONTROL.MemWrite = 0;
 
 	// RegWrite
-	if( opcode >= 1011)
+	if( binNum >= 13 )
 		CONTROL.RegWrite = 0;
 	else
 		CONTROL.RegWrite = 1;
 
 	// MemtoReg
-	if( opcode == 1010)
+	if( binNum == 12 )
 		CONTROL.MemtoReg = 1;
 	else
 		CONTROL.MemtoReg = 0;
@@ -611,72 +603,63 @@ void ForwardUnit ()
 		FORWARD.ForwardB = 1; // 0x01;
 };
 
-void ALUControlAndALU (int SignExtendImmediate, int ALUOp, int ALU_A, int ALU_B)
+void ALU(int opcode, int SignExtendImmediate, int ALU_A, int ALU_B)
 {
-	if(ALUOp == 0)
+	switch(opcode)
 	{
-		switch(SignExtendImmediate)
-		{
-			case 0: // add
-				EXMEMtemp.ALUResult = ALU_A + ALU_B;
-				break;
-			case 1: // sub
-				EXMEMtemp.ALUResult = ALU_A - ALU_B;
-				break;
-			case 2: // and
-				EXMEMtemp.ALUResult = ALU_A & ALU_B;
-				break;
-			case 3: // or
-				EXMEMtemp.ALUResult = ALU_A | ALU_B;
-				break;
-			case 4: // xor
-				EXMEMtemp.ALUResult = ALU_A ^ ALU_B;
-				break;
-			case 5: // nor
-				EXMEMtemp.ALUResult = ~(ALU_A | ALU_B);
-				break;
-			case 6: // slt
-				if( ALU_A < ALU_B)
-					EXMEMtemp.ALUResult = 1;
-				else
-					EXMEMtemp.ALUResult = 0;
-				break;
-		}
-	}
-	else
-	{
-		switch(ALUOp)
-		{
-			case 1: // add
-				EXMEMtemp.ALUResult = ALU_A + ALU_B;
-				break;
-			case 2: // sub
-				EXMEMtemp.ALUResult = ALU_A - ALU_B;
-				break;
-			case 3: // and
-				EXMEMtemp.ALUResult = ALU_A & ALU_B;
-				break;
-			case 4: // or
-				EXMEMtemp.ALUResult = ALU_A | ALU_B;
-				break;
-			case 5: // xor
-				EXMEMtemp.ALUResult = ALU_A ^ ALU_B;
-				break;
-			case 6: // nor
-				EXMEMtemp.ALUResult = ~(ALU_A | ALU_B);
-				break;
-			case 7: // slt	
-				if( ALU_A < ALU_B)
-					EXMEMtemp.ALUResult = 1;
-				else
-					EXMEMtemp.ALUResult = 0;
-				break;
-			case 8: // sll
-				EXMEMtemp.ALUResult = ALU_A << SignExtendImmediate; 
-				break;
-			case 9: // srl	
-				EXMEMtemp.ALUResult = ALU_A >> SignExtendImmediate;
-				break;
+		case 0: // nop
+			EXMEMtemp.ALUResult = 0; // Shouldnt matter
+			break;
+		case 1: // add
+			EXMEMtemp.ALUResult = ALU_A + ALU_B;
+			break;
+		case 2: // sub
+			EXMEMtemp.ALUResult = ALU_A - ALU_B;
+			break;
+		case 3: // and
+			EXMEMtemp.ALUResult = ALU_A & ALU_B;
+			break;
+		case 4: // or
+			EXMEMtemp.ALUResult = ALU_A | ALU_B;
+			break;
+		case 5: // xor
+			EXMEMtemp.ALUResult = ALU_A ^ ALU_B;
+			break;
+		case 6: // slt	
+			if( ALU_A < ALU_B)
+				EXMEMtemp.ALUResult = 1;
+			else
+				EXMEMtemp.ALUResult = 0;
+			break;
+		case 7: // sll
+			EXMEMtemp.ALUResult = ALU_A << SignExtendImmediate; 
+			break;
+		case 8: // srl	
+			EXMEMtemp.ALUResult = ALU_A >> SignExtendImmediate;
+			break;
+		case 9: // addi
+			EXMEMtemp.ALUResult = ALU_A + SignExtendImmediate;
+			break;
+		case 10: // subi
+			EXMEMtemp.ALUResult = ALU_A - SignExtendImmediate;
+		case 11: // slti	
+			if( ALU_A < SignExtendImmediate)
+				EXMEMtemp.ALUResult = 1;
+			else
+				EXMEMtemp.ALUResult = 0;
+			break;
+		case 12: // lw
+			EXMEMtemp.ALUResult = ALU_A + SignExtendImmediate;
+			break;
+		case 13: // sw
+			EXMEMtemp.ALUResult = ALU_A + SignExtendImmediate;
+			break;
+		case 14: // beq
+			EXMEMtemp.ALUResult = ALU_A - ALU_B; // Shouldnt matter
+			break;
+		case 15: // j
+			EXMEMtemp.ALUResult = 0; // Shouldnt matter
+			break;
 		}
 	}
 }
