@@ -35,8 +35,7 @@ int instMem[INST_SIZE]; // Instruction Memory
 #define $t0 regFile[5]
 #define $a0 regFile[6]
 #define $a1 regFile[7]
-#define $a2 regFile[8]
-#define $a3 regFile[9]
+//last two registers unimplemented, since we use only three bits to represent regs
 
 // Buffers - Pipelined Registers
 struct IFID
@@ -156,13 +155,13 @@ int main ()
 		instMem[i] = 0;
 
 	// Set Register File // Set these with instructions!
-	//$v0 = 0x0040;	//$v0 = 0040 hex; // registers need to be redefined ////////////////////////////////
-	//$v1 = 0x1010;	//$v1 = 1010 hex; 
-	//$v2 = 0x000F;	//$v2 = 000F hex;
-	//$v3 = 0x00F0;	//$v3 = 00F0 hex;
-	//$t0 = 0x0000;	//$t0 = 0000 hex;
-	//$a0 = 0x0010;	//$a0 = 0010 hex;
-	//$a1 = 0x0005;	//$a1 = 0005 hex;
+	$v0 = 0x0040;	//$v0 = 0040 hex;
+	$v1 = 0x1010;	//$v1 = 1010 hex; 
+	$v2 = 0x000F;	//$v2 = 000F hex;
+	$v3 = 0x00F0;	//$v3 = 00F0 hex;
+	$t0 = 0x0000;	//$t0 = 0000 hex;
+	$a0 = 0x0010;	//$a0 = 0010 hex;
+	$a1 = 0x0005;	//$a1 = 0005 hex;
 
 	// Set Data Memory
 	dataMem[$a0] = 0x0101;		//Mem[$a0] = 0101 hex
