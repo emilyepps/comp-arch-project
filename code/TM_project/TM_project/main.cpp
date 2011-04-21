@@ -159,17 +159,6 @@ int main ()
 	for(int i = 0; i < INST_SIZE; ++i)
 		instMem[i] = 0;
 
-	// Set Register File // Set these with instructions!
-	$v0 = 0x0040;	//$v0 = 0040 hex;
-	$v1 = 0x1010;	//$v1 = 1010 hex; 
-	$v2 = 0x000F;	//$v2 = 000F hex;
-	$v3 = 0x00F0;	//$v3 = 00F0 hex;
-	$t0 = 0x0000;	//$t0 = 0000 hex;
-	$a0 = 0x0010;	//$a0 = 0010 hex;
-	$a1 = 0x0005;	//$a1 = 0005 hex;
-	$a2 = 0x0000;	
-	$a3 = 0x0000;
-
 	// Set Data Memory
 	dataMem[$a0] = 0x0101;		//Mem[$a0] = 0101 hex
 	dataMem[$a0 + 2] = 0x0110;	//Mem[$a0+2] = 0110 hex
@@ -304,7 +293,7 @@ int main ()
 		IDEX = IDEXtemp;
 		EXMEM = EXMEMtemp;
 		MEMWB = MEMWBtemp;
-		//system("pause");
+		system("pause");
 		cout << endl;
 	}
 
@@ -365,7 +354,7 @@ void Fetch ()
 	cout << "Fetch()\n"; /////////////////////////////////////////////
 
 	// MUX before PC
-	if( HAZARD.PCWrite == 1 && HAZARD.IFID_Write == 1)
+	if( HAZARD.PCWrite == 1)// && HAZARD.IFID_Write == 1)
 	{
 		if(HAZARD.PCSrc == 0)
 		{
@@ -379,7 +368,7 @@ void Fetch ()
 
 	}
 
-	if( HAZARD.IFID_Write == 1 )
+	if( HAZARD.PCWrite == 1 )
 		IFIDtemp.PCInc += 2;
 
 	//IFIDtemp.IF_Flush = CONTROL.IF_Flush; // Dont need this, automatically inserted noops after beq's
@@ -587,13 +576,13 @@ void HazardDetectionUnit (char * op)
 	if ( IDEX.MemRead && ( ( IDEX.IFID_RegisterRt_toForward == HAZARD.IFID_RegisterRs) 
 		|| ( IDEX.IFID_RegisterRt_toForward == HAZARD.IFID_RegisterRt) ) )
 	{
-		HAZARD.IFID_Write = 0; // We believe this acts the same way as IF.Flush for the Control Unit
+//		HAZARD.IFID_Write = 0; // We believe this acts the same way as IF.Flush for the Control Unit
 		HAZARD.PCWrite = 0;
 		HAZARD.LinetoMux = 1;
 	}
 	else
 	{
-		HAZARD.IFID_Write = 1;
+//		HAZARD.IFID_Write = 1;
 		HAZARD.PCWrite = 1;
 		HAZARD.LinetoMux = 0;
 	}
@@ -607,7 +596,7 @@ void HazardDetectionUnit (char * op)
 	// test for nop
 	if (binNum == 0)
 	{
-		HAZARD.IFID_Write = 0;
+//		HAZARD.IFID_Write = 0;
 		HAZARD.LinetoMux = 1;
 		HAZARD.Jump = 0;
 	}
