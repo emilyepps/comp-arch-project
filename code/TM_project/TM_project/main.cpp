@@ -588,7 +588,8 @@ void HazardDetectionUnit (char * op)
 	HAZARD.IFID_RegisterRs = IDEXtemp.IFID_RegisterRs;
 	HAZARD.IFID_RegisterRt = IDEXtemp.IFID_RegisterRt_toMux;
 
-	if ( IDEX.MemRead && ( ( IDEX.IFID_RegisterRt_toForward == HAZARD.IFID_RegisterRs) || ( IDEX.IFID_RegisterRt_toForward == HAZARD.IFID_RegisterRt) ) )
+	if ( IDEX.MemRead && ( ( IDEX.IFID_RegisterRt_toForward == HAZARD.IFID_RegisterRs) 
+		|| ( IDEX.IFID_RegisterRt_toForward == HAZARD.IFID_RegisterRt) ) )
 	{
 		HAZARD.IFID_Write = 0; // We believe this acts the same way as IF.Flush for the Control Unit
 		HAZARD.PCWrite = 0;
@@ -601,8 +602,6 @@ void HazardDetectionUnit (char * op)
 		HAZARD.LinetoMux = 0;
 	}
 
-	if (binNum == 0) HAZARD.LinetoMux = 1;
-
 	// RegEQ - for reduced branch delay
 	if ( IDEXtemp.RegisterOne == IDEXtemp.RegisterTwo )
 		HAZARD.RegEQ = 1;
@@ -613,26 +612,25 @@ void HazardDetectionUnit (char * op)
 	if (binNum == 0)
 	{
 		HAZARD.IFID_Write = 0;
+		HAZARD.LinetoMux = 1;
+		HAZARD.Jump = 0;
 	}
-
-	// PCSrc and Jump/Branch
-	if( binNum == 14 || binNum == 15 ) // branch equal and jump
+	else if(binNum == 14)	// PCSrc and Jump/Branch
 	{
 		HAZARD.PCSrc = 1;
-
-		// Branch
-		if (binNum == 14)
-			HAZARD.Branch = HAZARD.RegEQ;
-
-		// Jump
-		if (binNum == 15)
-			HAZARD.Jump = 1;
-		else
-			HAZARD.Jump = 0;
+		HAZARD.Branch = HAZARD.RegEQ;
+		HAZARD.Jump = 0;
+	}
+	else if(binNum == 15)
+	{
+		HAZARD.PCSrc = 1;
+		HAZARD.Jump = 1;
 	}
 	else
+	{
+		HAZARD.Jump = 0;
 		HAZARD.PCSrc = 0;
-
+	}
 
 	HAZARD.IDEX_MemRead = IDEX.MemRead;
 	HAZARD.IDEX_RegisterRt = IDEX.IFID_RegisterRt_toMux;
