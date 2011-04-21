@@ -294,20 +294,20 @@ int main ()
 		cout << "HAZARD.PCWrite: " << HAZARD.PCWrite << endl;
 		cout << "HAZARD.IFID_Write: " << HAZARD.IFID_Write << endl;
 		Fetch();
-		IFID = IFIDtemp;		// Update pipeline register values
+		//IFID = IFIDtemp;		// Update pipeline register values
 		Decode();
-		IDEX = IDEXtemp;
+		//IDEX = IDEXtemp;
 		Execute();
-		EXMEM = EXMEMtemp;
+		//EXMEM = EXMEMtemp;
 		MemAccess();
-		MEMWB = MEMWBtemp;
+		//MEMWB = MEMWBtemp;
 		cout << "MEMWB.regwrite: " << MEMWB.RegWrite << endl;
 		WriteBack();
 
-		//IFID = IFIDtemp;		// Update pipeline register values
-		//IDEX = IDEXtemp;
-		//EXMEM = EXMEMtemp;
-		//MEMWB = MEMWBtemp;
+		IFID = IFIDtemp;		// Update pipeline register values
+		IDEX = IDEXtemp;
+		EXMEM = EXMEMtemp;
+		MEMWB = MEMWBtemp;
 		//system("pause");
 		cout << endl;
 	}
@@ -596,7 +596,7 @@ void HazardDetectionUnit (char * op)
 		HAZARD.LinetoMux = 1;
 	}
 	else
-	{
+	{+
 		HAZARD.IFID_Write = 1;
 		HAZARD.PCWrite = 1;
 		HAZARD.LinetoMux = 0;
