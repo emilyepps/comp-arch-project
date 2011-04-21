@@ -38,8 +38,6 @@ int instMem[INST_SIZE]; // Instruction Memory
 #define $a2 regFile[8]
 #define $a3 regFile[9]
 
-//last two registers unimplemented, since we use only three bits to represent regs
-
 // Buffers - Pipelined Registers
 struct IFID
 {
@@ -113,6 +111,8 @@ struct HAZARD
 	int IFID_Write;
 	int LinetoMux;
 	int PCSrc; // Extra input to control left branch mux
+	int Branch;
+	int Jump;
 
 } HAZARD;
 
@@ -195,7 +195,7 @@ int main ()
 			}	
 			instCount++;
 		}
-		// Add 4 more no op instructions to end of instruction memory, either add them in "instructions.txt" file or add them here ///////////////////////////////////////////
+
 		cout << "Done.\n\n" << endl;
 		f.close();
 	 }
@@ -265,6 +265,8 @@ int main ()
 	HAZARD.IFID_Write = 0;
 	HAZARD.LinetoMux = 0;
 	HAZARD.PCSrc = 0;
+	HAZARD.Branch = 0;
+	HAZARD.Jump = 0;
 
 	CONTROL.IF_Flush = 0;
 	CONTROL.ALUOp = 1;
@@ -414,8 +416,29 @@ void Decode ( )
 		IDEXtemp.MemtoReg = 0;
 	}
 
-	// Branch Shift Adder
-	FB.ID_BranchJumpAddress = IFID.PCInc + (IDEXtemp.SignExtendImmediate << 1);
+	// Two Muxes after Shift Adder
+	int muxOneResult;
+	if( HAZARD.Branch == 1 )
+		muxOneResult = IFID.PCInc + (IDEXtemp.SignExtendImmediate << 1);
+	else
+		muxOneResult = IFID.PCInc;
+
+	int muxTwoResult;
+	if( HAZARD.Jump == 1 )
+	{
+		char jumpIm[13] = {inst[4], inst[5], inst[6], inst[7], inst[8], inst[9], inst[10], inst[11], inst[12], inst[13], inst[14], inst[15], '0'};
+		binNum = 0;
+		for(int x = 12; x >= 0; x--)
+		{ 
+			char a[1] = {jumpIm[x]};
+			binNum += atoi(a) * 2^(12-x);
+		}
+		muxTwoResult = binNum; 
+	}
+	else
+		muxTwoResult = muxOneResult;
+
+	FB.ID_BranchJumpAddress = muxTwoResult;
 
 	// Write Data, Write Reg
 	if( MEMWB.RegWrite == 1 )
@@ -519,20 +542,34 @@ void HazardDetectionUnit (char * op)
 		HAZARD.LinetoMux = 0;
 	}
 
-	if( binNum == 14 || binNum == 15 ) 
-		HAZARD.PCSrc = 1;
-	else
-		HAZARD.PCSrc = 0;
-
 	// RegEQ - for reduced branch delay
 	if ( IDEXtemp.RegisterOne == IDEXtemp.RegisterTwo )
 		HAZARD.RegEQ = 1;
 	else
 		HAZARD.RegEQ = 0;
 
+	// PCSrc and Jump/Branch
+	if( binNum == 14 || binNum == 15 ) // branch equal and jump
+	{
+		HAZARD.PCSrc = 1;
+
+		// Branch
+		if (binNum == 14)
+			HAZARD.Branch = HAZARD.RegEQ;
+
+		// Jump
+		if (binNum == 15)
+			HAZARD.Jump = 1;
+		else
+			HAZARD.Jump = 0;
+	}
+	else
+		HAZARD.PCSrc = 0;
+
+
 	HAZARD.IDEX_MemRead = IDEX.MemRead;
 	HAZARD.IDEX_RegisterRt = IDEX.IFID_RegisterRt_toMux;
-};
+}
 
 void ControlUnit (char * op)
 { 
@@ -605,7 +642,7 @@ void ForwardUnit ()
 		FORWARD.ForwardA = 1; // 0x01;
 	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRt_toForward) )
 		FORWARD.ForwardB = 1; // 0x01;
-};
+}
 
 void ALU(int opcode, int SignExtendImmediate, int ALU_A, int ALU_B)
 {
@@ -664,6 +701,5 @@ void ALU(int opcode, int SignExtendImmediate, int ALU_A, int ALU_B)
 		case 15: // j
 			EXMEMtemp.ALUResult = 0; // Shouldnt matter
 			break;
-		}
 	}
 }
