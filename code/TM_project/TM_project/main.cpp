@@ -20,6 +20,7 @@ void WriteBack ();
 void HazardDetectionUnit (char * op);
 void ControlUnit (char * op);
 void ForwardUnit ();
+void printAll();
 
 // Variables
 int dataMem[DATA_SIZE]; // Data Memory
@@ -196,6 +197,7 @@ int main ()
 			instCount++;
 		}
 
+		cout << instCount << endl;
 		cout << "Done.\n\n" << endl;
 		f.close();
 	 }
@@ -206,15 +208,10 @@ int main ()
 	}
 
 	// Print initial memory and register contents
-	for(int i = 0; i < REG_SIZE; ++i)
-		cout << "regFile[" << i << "] = " << regFile[i] << endl;
-	for(int i = 0; i < DATA_SIZE; ++i)
-		cout << "dataMem[" << i << "] = " << dataMem[i] << endl;
-	for(int i = 0; i < INST_SIZE; ++i)
-		cout << "instMem[" << i << "] = " << instMem[i] << endl;
+	printAll();
 
 	// Setup signals before execution
-	IFID.PCInc = 2;
+	IFID.PCInc = 0;
 	IFID.IF_Flush = 0;
 	IFID.Instruction = 0;
 
@@ -261,8 +258,8 @@ int main ()
 	HAZARD.IFID_RegisterRs = 0;
 	HAZARD.IFID_RegisterRt = 0;
 	HAZARD.RegEQ = 0;
-	HAZARD.PCWrite = 0;
-	HAZARD.IFID_Write = 0;
+	HAZARD.PCWrite = 1;
+	HAZARD.IFID_Write = 1;
 	HAZARD.LinetoMux = 0;
 	HAZARD.PCSrc = 0;
 	HAZARD.Branch = 0;
@@ -288,8 +285,10 @@ int main ()
 
 	// Set PC and execute program by fetching instruction from the memory Unit until the program ends. Looping.
 	PC = 0;
-	while( PC < instCount )
+	while( PC < (instCount - 1)*2 )
 	{
+		if(PC!=0)
+			cout << PC << endl;
 		Fetch();
 		Decode();
 		Execute();
@@ -301,13 +300,20 @@ int main ()
 		IDEX = IDEXtemp;
 		EXMEM = EXMEMtemp;
 		MEMWB = MEMWBtemp;
+		system("pause");
 	}
+
+	// Print results after execution
+	cout << "//////////////////////////////////////////////////////////////////////" << endl;
+	printAll();
 
 	return 0;
 }
 
 void Fetch () 
 {
+	cout << "Fetch\n"; /////////////////////////////////////////////
+
 	// MUX before PC
 	if( HAZARD.PCWrite == 1 && HAZARD.IFID_Write == 1)
 	{
@@ -330,9 +336,11 @@ void Fetch ()
 
 void Decode ( ) 
 {
+	cout << "Decode\n"; /////////////////////////////////////////
+
 	// Convert integer form of instruction to char array
 	char inst[16];
-	itoa(IFID.Instruction, inst, 10);
+	cout << itoa(IFID.Instruction, inst, 10); /////////////////////////////////////////
 
 	// Grab sections of instruction
 	char rs[4] = {inst[4], inst[5], inst[6], inst[7]};
@@ -367,6 +375,9 @@ void Decode ( )
 	IDEXtemp.RegisterOne = regFile[IDEXtemp.IFID_RegisterRs];
 	IDEXtemp.RegisterTwo = regFile[IDEXtemp.IFID_RegisterRt_toMux]; 
 
+	cout << "RegisterOne: " << IDEXtemp.RegisterOne << endl; ////////////////////////////////////
+	cout << "RegisterTwo: " << IDEXtemp.RegisterTwo << endl; //////////////////////////////////////
+
 	// Sign Extend
 	char immediate[4] = {inst[12], inst[13], inst[14], inst[15]};
 	binNum = 0;
@@ -387,6 +398,8 @@ void Decode ( )
 	}
 	// Pass opcode
 	IDEXtemp.Opcode = binNum;
+
+	cout << "Opcode: " << IDEXtemp.Opcode << endl; ////////////////////////////////////
 
 	// Hazard Detection Unit
 	HazardDetectionUnit(opcode);
@@ -702,4 +715,14 @@ void ALU(int opcode, int SignExtendImmediate, int ALU_A, int ALU_B)
 			EXMEMtemp.ALUResult = 0; // Shouldnt matter
 			break;
 	}
+}
+
+void printAll()
+{
+	for(int i = 0; i < REG_SIZE; ++i)
+		cout << "regFile[" << i << "] = " << regFile[i] << endl;
+	for(int i = 10; i < 30; ++i) // pseudocode uses dataMem locations 16 to 26, so we will print 10 to 30
+		cout << "dataMem[" << i << "] = " << dataMem[i] << endl;
+	for(int i = 0; i < INST_SIZE; ++i)
+		cout << "instMem[" << i << "] = " << instMem[i] << endl;
 }
