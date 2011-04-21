@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <limits>
 
 #define DATA_SIZE 512
 #define REG_SIZE 10
@@ -284,51 +285,105 @@ int main ()
 	FORWARD.ForwardB = 0;
 
 	// Set PC and execute program by fetching instruction from the memory Unit until the program ends. Looping.
+
 	PC = 0;
 	while( PC < (instCount - 1)*2 )
 	{
-		if(PC!=0)
-			cout << PC << endl;
+		PC = IFID.PCInc;
+		cout << PC << endl;
+		cout << "HAZARD.PCWrite: " << HAZARD.PCWrite << endl;
+		cout << "HAZARD.IFID_Write: " << HAZARD.IFID_Write << endl;
 		Fetch();
+		IFID = IFIDtemp;		// Update pipeline register values
 		Decode();
+		IDEX = IDEXtemp;
 		Execute();
+		EXMEM = EXMEMtemp;
 		MemAccess();
+		MEMWB = MEMWBtemp;
+		cout << "MEMWB.regwrite: " << MEMWB.RegWrite << endl;
 		WriteBack();
 
-		// Update all pipeline register values
-		IFID = IFIDtemp;
-		IDEX = IDEXtemp;
-		EXMEM = EXMEMtemp;
-		MEMWB = MEMWBtemp;
-		system("pause");
+		//IFID = IFIDtemp;		// Update pipeline register values
+		//IDEX = IDEXtemp;
+		//EXMEM = EXMEMtemp;
+		//MEMWB = MEMWBtemp;
+		//system("pause");
+		cout << endl;
 	}
 
 	// Print results after execution
 	cout << "//////////////////////////////////////////////////////////////////////" << endl;
 	printAll();
 
+	string key;
+	cout << "Press a key" << endl;
+	cin >> key;
+
 	return 0;
+}
+
+int binStringToDec(char* ar,int bits)
+{
+	int binNum = 0;
+	for(int x = bits - 1; x >= 0; x--)
+	{ 
+		if(ar[x] == '1')
+			binNum += (int)pow((double)2,((bits - 1)-x));
+	}
+
+	return binNum;
+}
+
+string decToBinString(int decNum)
+{
+	string temp = "0000000000000000";
+	int divisor = decNum;
+	for (int index = 15; index >= 0; index--)
+	{
+		temp[index] = divisor % 2;
+		divisor = divisor / 2;
+	}
+	return temp;
+}
+
+
+string cvt_binary(unsigned int input) 
+{
+	if(input == 0) return "0000000000000000"; // trivial case
+	string result;
+
+	for(int i = 16 - 1; i >= 0; --i) {
+		
+		if(input & (1 << i))
+			result += "1";
+		else
+			result += "0";
+
+	}
+	return result;
 }
 
 void Fetch () 
 {
-	cout << "Fetch\n"; /////////////////////////////////////////////
+	cout << "Fetch()\n"; /////////////////////////////////////////////
 
 	// MUX before PC
 	if( HAZARD.PCWrite == 1 && HAZARD.IFID_Write == 1)
 	{
 		if(HAZARD.PCSrc == 0)
 		{
-			IFIDtemp.Instruction = instMem[IFID.PCInc];
+			IFIDtemp.Instruction = instMem[IFID.PCInc/2];
 		}
 		else
 		{
-			IFIDtemp.Instruction = instMem[FB.ID_BranchJumpAddress];
+			IFIDtemp.Instruction = instMem[FB.ID_BranchJumpAddress/2];
+//			IFIDtemp.PCInc = FB.ID_BranchJumpAddress;
 		}
 
 	}
 
-	if( HAZARD.PCWrite == 1 )
+	if( HAZARD.IFID_Write == 1 )
 		IFIDtemp.PCInc += 2;
 
 	//IFIDtemp.IF_Flush = CONTROL.IF_Flush; // Dont need this, automatically inserted noops after beq's
@@ -336,70 +391,53 @@ void Fetch ()
 
 void Decode ( ) 
 {
-	cout << "Decode\n"; /////////////////////////////////////////
+	cout << "Decode()\n"; /////////////////////////////////////////
 
-	// Convert integer form of instruction to char array
-	char inst[16];
-	cout << itoa(IFID.Instruction, inst, 10); /////////////////////////////////////////
+	// Convert integer form of instruction to char array)
+//	char inst[16] = {'0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'};
+	string str;
+	//str = decToBinString(IFID.Instruction);
+	str = cvt_binary(IFID.Instruction);
+	cout << "String: " << str << endl;
+	cout << "-Instruction: " << str << endl; /////////////////////////////////////////
 
 	// Grab sections of instruction
-	char rs[4] = {inst[4], inst[5], inst[6], inst[7]};
-	int binNum = 0;
-	for(int x = 3; x >= 0; x--)
-	{ 
-		char a[1] = {rs[x]};
-		binNum += atoi(a) * 2^(3-x);
-	}
-	IDEXtemp.IFID_RegisterRs = binNum;
+	char rs[4] = {str[4], str[5], str[6], str[7]};
+	cout << "rs: " << rs << endl;
+	IDEXtemp.IFID_RegisterRs = binStringToDec(rs,4);
+	cout << "-IDEXtemp.IFID_RegisterRs: " << IDEXtemp.IFID_RegisterRs << endl; ////////////////////////////////////
 
-	char rt[4] = {inst[8], inst[9], inst[10], inst[11]};
-	binNum = 0;
-	for(int x = 3; x >= 0; x--)
-	{ 
-		char a[1] = {rt[x]};
-		binNum += atoi(a) * 2^(3-x);
-	}
-	IDEXtemp.IFID_RegisterRt_toMux = binNum;
-	IDEXtemp.IFID_RegisterRt_toForward = binNum;
 
-	char rd[4] = {inst[12], inst[13], inst[14], inst[15]};
-	binNum = 0;
-	for(int x = 3; x >= 0; x--)
-	{ 
-		char a[1] = {rd[x]};
-		binNum += atoi(a) * 2^(3-x);
-	}
-	IDEXtemp.IFID_RegisterRd = binNum;
+	char rt[4] = {str[8], str[9], str[10], str[11]};
+	cout << "rt: " << rt << endl;
+	IDEXtemp.IFID_RegisterRt_toMux = binStringToDec(rt,4);
+	IDEXtemp.IFID_RegisterRt_toForward = binStringToDec(rt,4);
+	cout << "-IDEXtemp.IFID_RegisterRt_tM_tF: " << IDEXtemp.IFID_RegisterRt_toForward << endl; //////////////////////////////////////
+
+
+	char rd[4] = {str[12], str[13], str[14], str[15]};
+	cout << "rd: " << rd << endl;
+	IDEXtemp.IFID_RegisterRd = binStringToDec(rd,4);
+	cout << "-IDEXtemp.IFID_RegisterRd: " << IDEXtemp.IFID_RegisterRd << endl; //////////////////////////////////////
 
 	// Read from RegFile
 	IDEXtemp.RegisterOne = regFile[IDEXtemp.IFID_RegisterRs];
 	IDEXtemp.RegisterTwo = regFile[IDEXtemp.IFID_RegisterRt_toMux]; 
 
-	cout << "RegisterOne: " << IDEXtemp.RegisterOne << endl; ////////////////////////////////////
-	cout << "RegisterTwo: " << IDEXtemp.RegisterTwo << endl; //////////////////////////////////////
+	cout << "-RegisterOne: " << IDEXtemp.RegisterOne << endl; ////////////////////////////////////
+	cout << "-RegisterTwo: " << IDEXtemp.RegisterTwo << endl; //////////////////////////////////////
 
 	// Sign Extend
-	char immediate[4] = {inst[12], inst[13], inst[14], inst[15]};
-	binNum = 0;
-	for(int x = 3; x >= 0; x--)
-	{ 
-		char a[1] = {immediate[x]};
-		binNum += atoi(a) * 2^(3-x);
-	}
-	IDEXtemp.SignExtendImmediate = binNum; 
+	char immediate[4] = {str[12], str[13], str[14], str[15]};
+	IDEXtemp.SignExtendImmediate = binStringToDec(immediate,4); 
 
 	// Grab Opcode
-	char opcode[4] = {inst[0], inst[1], inst[2], inst[3]};
-	binNum = 0;
-	for(int x = 3; x >= 0; x--)
-	{ 
-		char a[1] = {opcode[x]};
-		binNum += atoi(a) * 2^(3-x);
-	}
-	// Pass opcode
-	IDEXtemp.Opcode = binNum;
+	char opcode[4] = {str[0], str[1], str[2], str[3]};
 
-	cout << "Opcode: " << IDEXtemp.Opcode << endl; ////////////////////////////////////
+	// Pass opcode
+	IDEXtemp.Opcode = binStringToDec(opcode,4);
+
+	cout << "-Opcode: " << IDEXtemp.Opcode << endl; ////////////////////////////////////
 
 	// Hazard Detection Unit
 	HazardDetectionUnit(opcode);
@@ -439,27 +477,20 @@ void Decode ( )
 	int muxTwoResult;
 	if( HAZARD.Jump == 1 )
 	{
-		char jumpIm[13] = {inst[4], inst[5], inst[6], inst[7], inst[8], inst[9], inst[10], inst[11], inst[12], inst[13], inst[14], inst[15], '0'};
-		binNum = 0;
-		for(int x = 12; x >= 0; x--)
-		{ 
-			char a[1] = {jumpIm[x]};
-			binNum += atoi(a) * 2^(12-x);
-		}
-		muxTwoResult = binNum; 
+		char jumpIm[13] = {str[4], str[5], str[6], str[7], str[8], str[9], str[10], str[11], str[12], str[13], str[14], str[15], '0'};
+		muxTwoResult = binStringToDec(jumpIm,13);
 	}
 	else
 		muxTwoResult = muxOneResult;
 
 	FB.ID_BranchJumpAddress = muxTwoResult;
 
-	// Write Data, Write Reg
-	if( MEMWB.RegWrite == 1 )
-		regFile[MEMWB.EXMEM_RegisterRd] = FB.WB_MuxOutcome;
 }
 
 void Execute()
 {
+	cout << "Execute()\n"; /////////////////////////////////////////
+
 	// Forward Unit
 	ForwardUnit();
 
@@ -471,6 +502,9 @@ void Execute()
 		ForwardAResult = FB.WB_MuxOutcome; // the value coming out of the MUX in the WB stage
 	else
 		ForwardAResult = EXMEM.ALUResult;
+	cout << "FORWARD.forwardA: " << FORWARD.ForwardA << endl;
+	cout << "register one: " << IDEX.RegisterOne << endl;
+	cout << "WB_muxresult1: " << FB.WB_MuxOutcome << endl;
 
 	// ForwardB Mux
 	if( FORWARD.ForwardB == 0 )
@@ -505,6 +539,8 @@ void Execute()
 
 void MemAccess ()
 {
+	cout << "MemAccess()\n"; /////////////////////////////////////////
+
 	// Deal with DataMem
 	if( EXMEM.MemRead == 1 )
 		MEMWBtemp.DataMemoryResult = dataMem[EXMEM.ALUResult];
@@ -523,43 +559,61 @@ void MemAccess ()
 
 void WriteBack () 
 {
+	cout << "WriteBack()\n"; /////////////////////////////////////////
+
+
+	cout << "Memwrite: " << EXMEM.MemWrite << endl;
+
+	cout << "Memtoreg: " << MEMWB.MemtoReg << endl;
+
 	// MUX
 	if( MEMWB.MemtoReg == 0 )
 		FB.WB_MuxOutcome = MEMWB.DataMemoryResult;
 	else
 		FB.WB_MuxOutcome = MEMWB.ALUResult;
+	cout << "WB_muxresult2: " << FB.WB_MuxOutcome << endl;
+
+	// Write Data, Write Reg
+	if( MEMWB.RegWrite == 1 )
+		regFile[MEMWB.EXMEM_RegisterRd] = FB.WB_MuxOutcome;
+
 }
 
 void HazardDetectionUnit (char * op) 
 {
-	int binNum = 0;
-	for(int x = 3; x >= 0; x--)
-	{ 
-		char a[1] = {op[x]};
-		binNum += atoi(a) * 2^(3-x);
-	}
+	cout << "HazardDetectionUnit()\n"; /////////////////////////////////////////
+
+	int binNum = binStringToDec(op,4);
 
 	HAZARD.IFID_RegisterRs = IDEXtemp.IFID_RegisterRs;
 	HAZARD.IFID_RegisterRt = IDEXtemp.IFID_RegisterRt_toMux;
 
 	if ( IDEX.MemRead && ( ( IDEX.IFID_RegisterRt_toForward == HAZARD.IFID_RegisterRs) || ( IDEX.IFID_RegisterRt_toForward == HAZARD.IFID_RegisterRt) ) )
 	{
-		HAZARD.IFID_Write = 1; // We believe this acts the same way as IF.Flush for the Control Unit
+		HAZARD.IFID_Write = 0; // We believe this acts the same way as IF.Flush for the Control Unit
 		HAZARD.PCWrite = 0;
 		HAZARD.LinetoMux = 1;
 	}
 	else
 	{
-		HAZARD.IFID_Write = 0;
+		HAZARD.IFID_Write = 1;
 		HAZARD.PCWrite = 1;
 		HAZARD.LinetoMux = 0;
 	}
+
+	if (binNum == 0) HAZARD.LinetoMux = 1;
 
 	// RegEQ - for reduced branch delay
 	if ( IDEXtemp.RegisterOne == IDEXtemp.RegisterTwo )
 		HAZARD.RegEQ = 1;
 	else
 		HAZARD.RegEQ = 0;
+
+	// test for nop
+	if (binNum == 0)
+	{
+		HAZARD.IFID_Write = 0;
+	}
 
 	// PCSrc and Jump/Branch
 	if( binNum == 14 || binNum == 15 ) // branch equal and jump
@@ -586,14 +640,15 @@ void HazardDetectionUnit (char * op)
 
 void ControlUnit (char * op)
 { 
-	int binNum = 0;
-	for(int x = 3; x >= 0; x--)
-	{ 
-		char a[1] = {op[x]};
-		binNum += atoi(a) * 2^(3-x);
-	}
+	cout << "ControlUnit()\n"; /////////////////////////////////////////
+
+	int binNum = binStringToDec(op,4);
 
 	//CONTROL.IF_Flush; // Not using
+
+	//set regwrite for nop
+	if(binNum == 0)
+		CONTROL.RegWrite = 0;
 
 	// RegDst
 	if(binNum <= 6)
@@ -627,13 +682,15 @@ void ControlUnit (char * op)
 
 	// MemtoReg
 	if( binNum == 12 )
-		CONTROL.MemtoReg = 1;
-	else
 		CONTROL.MemtoReg = 0;
+	else
+		CONTROL.MemtoReg = 1;
 }
 
 void ForwardUnit ()
 {
+	cout << "ForwardUnit()\n"; /////////////////////////////////////////
+
 	FORWARD.ForwardA = 0;
 	FORWARD.ForwardB = 0;
 
@@ -651,14 +708,18 @@ void ForwardUnit ()
 		FORWARD.ForwardB = 2; // 0x02;
 
 	// MEM Hazard
-	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRs) )
+	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRs) 
+		&& !( EXMEM.RegWrite && ( EXMEM.RegDstMuxResult != 0 ) && ( EXMEM.RegDstMuxResult != IDEX.IFID_RegisterRs) ))
 		FORWARD.ForwardA = 1; // 0x01;
-	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRt_toForward) )
+	if ( MEMWB.RegWrite && ( MEMWB.EXMEM_RegisterRd != 0 ) && ( MEMWB.EXMEM_RegisterRd == IDEX.IFID_RegisterRt_toForward) 
+		&& !( EXMEM.RegWrite && ( EXMEM.RegDstMuxResult != 0 ) && ( EXMEM.RegDstMuxResult != IDEX.IFID_RegisterRt_toForward) ))
 		FORWARD.ForwardB = 1; // 0x01;
 }
 
 void ALU(int opcode, int SignExtendImmediate, int ALU_A, int ALU_B)
 {
+	cout << "ALU()\n"; /////////////////////////////////////////
+	cout << "ALU_A: " << ALU_A << "  ALU_B: " << ALU_B << endl;
 	switch(opcode)
 	{
 		case 0: // nop
@@ -686,35 +747,43 @@ void ALU(int opcode, int SignExtendImmediate, int ALU_A, int ALU_B)
 				EXMEMtemp.ALUResult = 0;
 			break;
 		case 7: // sll
-			EXMEMtemp.ALUResult = ALU_A << SignExtendImmediate; 
+//			EXMEMtemp.ALUResult = ALU_A << SignExtendImmediate; 
+			EXMEMtemp.ALUResult = ALU_A << ALU_B; 
 			break;
 		case 8: // srl	
-			EXMEMtemp.ALUResult = ALU_A >> SignExtendImmediate;
+//			EXMEMtemp.ALUResult = ALU_A >> SignExtendImmediate;
+			EXMEMtemp.ALUResult = ALU_A >> ALU_B;
 			break;
 		case 9: // addi
-			EXMEMtemp.ALUResult = ALU_A + SignExtendImmediate;
+//			EXMEMtemp.ALUResult = ALU_A + SignExtendImmediate;
+			EXMEMtemp.ALUResult = ALU_A + ALU_B;
 			break;
 		case 10: // subi
-			EXMEMtemp.ALUResult = ALU_A - SignExtendImmediate;
+//			EXMEMtemp.ALUResult = ALU_A - SignExtendImmediate;
+			EXMEMtemp.ALUResult = ALU_A - ALU_B;
+			break;
 		case 11: // slti	
-			if( ALU_A < SignExtendImmediate)
+			if( ALU_A < ALU_B)
 				EXMEMtemp.ALUResult = 1;
 			else
 				EXMEMtemp.ALUResult = 0;
 			break;
 		case 12: // lw
-			EXMEMtemp.ALUResult = ALU_A + SignExtendImmediate;
+//			EXMEMtemp.ALUResult = ALU_A + SignExtendImmediate;
+			EXMEMtemp.ALUResult = ALU_A + ALU_B;
 			break;
 		case 13: // sw
-			EXMEMtemp.ALUResult = ALU_A + SignExtendImmediate;
+//			EXMEMtemp.ALUResult = ALU_A + SignExtendImmediate;
+			EXMEMtemp.ALUResult = ALU_A + ALU_B;
 			break;
 		case 14: // beq
-			EXMEMtemp.ALUResult = ALU_A - ALU_B; // Shouldnt matter
+ 			EXMEMtemp.ALUResult = ALU_A - ALU_B; // Shouldnt matter
 			break;
 		case 15: // j
 			EXMEMtemp.ALUResult = 0; // Shouldnt matter
 			break;
 	}
+	cout << "EXMEMtemp.ALUResult: " << EXMEMtemp.ALUResult << endl;
 }
 
 void printAll()
